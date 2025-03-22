@@ -29,6 +29,29 @@
         </a>
     </div>
 
+    <?php if ($userClassRole === 'owner'): ?>
+        <div class="flex justify-end space-x-4 mt-4 mb-4">
+            <a href="<?= site_url('class/edit/' . $class['id']) ?>"
+                class="px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:shadow-outline-blue">
+                Edit Class
+            </a>
+
+            <a href="#"
+                onclick="confirmDelete(<?= $class['id'] ?>)"
+                class="px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:outline-none focus:shadow-outline-red">
+                Delete Class
+            </a>
+        </div>
+
+        <script>
+            function confirmDelete(classId) {
+                if (confirm('Are you sure you want to delete this class? This action cannot be undone.')) {
+                    window.location.href = '<?= site_url('class/delete/') ?>' + classId;
+                }
+            }
+        </script>
+    <?php endif; ?>
+
     <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 mb-8">
         <div class="flex justify-between">
             <div>
@@ -56,6 +79,7 @@
                     </div>
                     <span class="px-3 py-1 text-white">Your role :</span>
                     <span class="px-3 py-1 text-red-700 bg-red-100 rounded-full dark:bg-red-700 dark:text-red-100">Owner</span>
+
                 </div>
 
             <?php elseif ($userClassRole === 'contributor'): ?>
@@ -68,6 +92,7 @@
                 </div>
             <?php endif; ?>
         </div>
+
     </div>
 
     <div class="grid gap-6 mb-8 md:grid-cols-2">

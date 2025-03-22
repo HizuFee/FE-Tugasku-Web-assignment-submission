@@ -163,4 +163,101 @@ class ClassController extends Controller
             'userClassRole' => $response['class']['userRole'] ?? 'student' // Can be 'owner', 'contributor', or 'student'
         ]);
     }
+    public function editForm($id)
+    {
+        if (session()->get('user')['role'] !== 'teacher') {
+            return redirect()->to('/dashboard')
+                ->with('error', 'Only teachers can edit classes');
+        }
+
+        $apiUrl = "http://localhost:3000/api/class/{$id}";
+        $headers = [
+            'x-auth-token' => session()->get('auth_token')
+        ];
+
+        $response = api_request($apiUrl, 'GET', [], $headers);
+
+        if (!$response || isset($response['error'])) {
+            return redirect()->to('/dashboard')
+                ->with('error', $response['message'] ?? 'Failed to fetch class details');
+        }
+
+        // Check if user is the owner
+        if ($response['class']['userRole'] !== 'owner') {
+            return redirect()->to("/class/details/{$id}")
+                ->with('error', 'Only the class owner can edit this class');
+        }
+
+        return view('class/edit', [
+            'class' => $response['class'] ?? []
+        ]);
+    }
+
+    // Process class update
+    public function update($id)
+    {
+        if (session()->get('user')['role'] !== 'teacher') {
+            return redirect()->to('/dashboard')
+                ->with('error', 'Only teachers can update classes');
+        }
+
+        $validation = \Config\Services::validation();
+        $rules = [
+            'name' => 'required|min_length[3]',
+            'description' => 'required'
+        ];
+
+        if (!$this->validate($rules)) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', implode('<br>', $validation->getErrors()));
+        }
+
+        $data = [
+            'name' => $this->request->getPost('name'),
+            'description' => $this->request->getPost('description')
+        ];
+
+        $apiUrl = "http://localhost:3000/api/class/update/{$id}";
+        $headers = [
+            'x-auth-token' => session()->get('auth_token')
+        ];
+
+        $response = api_request($apiUrl, 'PUT', $data, $headers);
+
+        if ($response && !isset($response['error'])) {
+            return redirect()->to("/class/details/{$id}")
+                ->with('success', 'Class updated successfully');
+        } else {
+            $errorMessage = $response['message'] ?? 'Failed to update class. Please try again.';
+            return redirect()->back()
+                ->withInput()
+                ->with('error', $errorMessage);
+        }
+    }
+
+    // Delete class
+    public function delete($id)
+    {
+        if (session()->get('user')['role'] !== 'teacher') {
+            return redirect()->to('/dashboard')
+                ->with('error', 'Only teachers can delete classes');
+        }
+
+        $apiUrl = "http://localhost:3000/api/class/delete/{$id}";
+        $headers = [
+            'x-auth-token' => session()->get('auth_token')
+        ];
+
+        $response = api_request($apiUrl, 'DELETE', [], $headers);
+
+        if ($response && !isset($response['error'])) {
+            return redirect()->to('/dashboard')
+                ->with('success', 'Class deleted successfully');
+        } else {
+            $errorMessage = $response['message'] ?? 'Failed to delete class. Please try again.';
+            return redirect()->to("/class/details/{$id}")
+                ->with('error', $errorMessage);
+        }
+    }
 }

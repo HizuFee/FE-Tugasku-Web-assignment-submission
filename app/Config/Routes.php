@@ -60,6 +60,9 @@ $routes->group('class', ['filter' => 'auth'], function ($routes) {
     $routes->get('join', 'ClassController::joinForm');
     $routes->post('join', 'ClassController::join');
     $routes->get('details/(:num)', 'ClassController::details/$1');
+    $routes->get('edit/(:num)', 'ClassController::editForm/$1', ['filter' => 'auth:teacher']);
+    $routes->post('update/(:num)', 'ClassController::update/$1', ['filter' => 'auth:teacher']);
+    $routes->get('delete/(:num)', 'ClassController::delete/$1', ['filter' => 'auth:teacher']);
 });
 
 $routes->get('login', 'AuthController::showLoginForm');
