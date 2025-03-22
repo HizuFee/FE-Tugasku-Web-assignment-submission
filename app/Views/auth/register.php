@@ -38,6 +38,19 @@
                             Create account
                         </h1>
                         <form action="/register" method="POST" class="space-y-4">
+                            <?php if (session()->has('error')): ?>
+                                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
+                                    class="mb-4 px-4 py-2 rounded-lg bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-100">
+                                    <?= session()->get('error') ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <?php if (session()->has('message')): ?>
+                                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)"
+                                    class="mb-4 px-4 py-2 rounded-lg bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-100">
+                                    <?= session()->get('message') ?>
+                                </div>
+                            <?php endif; ?>
                             <label class="block text-sm">
                                 <span class="text-gray-700 dark:text-gray-400">Name</span>
                                 <input
