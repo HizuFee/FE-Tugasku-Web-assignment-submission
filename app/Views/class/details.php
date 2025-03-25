@@ -71,7 +71,6 @@
             </div>
 
             <?php if ($userClassRole === 'owner'): ?>
-
                 <div class="text-right">
                     <div class="mt-4 text-sm">
                         <span class="block text-gray-500">Class Code:</span>
@@ -79,9 +78,7 @@
                     </div>
                     <span class="px-3 py-1 text-white">Your role :</span>
                     <span class="px-3 py-1 text-red-700 bg-red-100 rounded-full dark:bg-red-700 dark:text-red-100">Owner</span>
-
                 </div>
-
             <?php elseif ($userClassRole === 'contributor'): ?>
                 <div class="text-right">
                     <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">Contributor</span>
@@ -92,7 +89,25 @@
                 </div>
             <?php endif; ?>
         </div>
+    </div>
 
+    <!-- Assignment Section -->
+    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6 mb-8">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200">Assignments</h3>
+
+            <?php if ($userClassRole === 'owner' || $userClassRole === 'contributor'): ?>
+                <a href="<?= site_url('class/' . $class['id'] . '/assignments/create') ?>"
+                    class="px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-green-600 border border-transparent rounded-lg hover:bg-green-700 focus:outline-none focus:shadow-outline-green">
+                    Create New Assignment
+                </a>
+            <?php endif; ?>
+        </div>
+
+        <a href="<?= site_url('class/' . $class['id'] . '/assignments') ?>"
+            class="inline-block px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:shadow-outline-blue">
+            View All Assignments
+        </a>
     </div>
 
     <div class="grid gap-6 mb-8 md:grid-cols-2">
@@ -158,7 +173,7 @@
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr class="text-gray-700 dark:text-gray-400">
-                                <td colspan="2" class="px-4 py-3 text-center">No students have joined this class yet.</td>
+                                <td colspan="3" class="px-4 py-3 text-center">No students have joined this class yet.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
@@ -166,7 +181,5 @@
             </div>
         </div>
     </div>
-
-    <!-- Additional class functionality can go here -->
 </div>
 <?= $this->endSection() ?>

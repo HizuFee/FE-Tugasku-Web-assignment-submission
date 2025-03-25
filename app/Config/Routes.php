@@ -63,6 +63,17 @@ $routes->group('class', ['filter' => 'auth'], function ($routes) {
     $routes->get('edit/(:num)', 'ClassController::editForm/$1', ['filter' => 'auth:teacher']);
     $routes->post('update/(:num)', 'ClassController::update/$1', ['filter' => 'auth:teacher']);
     $routes->get('delete/(:num)', 'ClassController::delete/$1', ['filter' => 'auth:teacher']);
+
+    // Assignment routes
+    $routes->get('(:num)/assignments', 'AssignmentController::listAssignments/$1');
+    $routes->get('(:num)/assignments/create', 'AssignmentController::createForm/$1', ['filter' => 'auth:teacher']);
+    $routes->post('(:num)/assignments/create', 'AssignmentController::create/$1', ['filter' => 'auth:teacher']);
+    $routes->get('(:num)/assignments/(:num)', 'AssignmentController::details/$1/$2');
+    $routes->get('(:num)/assignments/(:num)/edit', 'AssignmentController::editForm/$1/$2', ['filter' => 'auth:teacher']);
+    $routes->post('(:num)/assignments/(:num)/update', 'AssignmentController::update/$1/$2', ['filter' => 'auth:teacher']);
+    $routes->get('(:num)/assignments/(:num)/delete', 'AssignmentController::delete/$1/$2', ['filter' => 'auth:teacher']);
+    $routes->post('(:num)/assignments/(:num)/submit', 'AssignmentController::submit/$1/$2', ['filter' => 'auth:student']);
+    $routes->post('(:num)/assignments/submission/(:num)/grade', 'AssignmentController::gradeSubmission/$1/$2', ['filter' => 'auth:teacher']);
 });
 
 $routes->get('login', 'AuthController::showLoginForm');
