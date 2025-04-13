@@ -5,46 +5,7 @@ use CodeIgniter\Router\RouteCollection;
 /**
  * @var RouteCollection $routes
  */
-// $routes->get('/', 'Home::index');
-// // Auth routes
-// $routes->get('register', 'AuthController::showRegistrationForm');
-// $routes->post('register', 'AuthController::register');
 
-// $routes->get('login', 'AuthController::showLoginForm');
-// $routes->post('login', 'AuthController::login');
-
-// $routes->get('logout', 'AuthController::logout');
-// $routes->get('dashboard', 'Home::index', ['filters' => 'auth']);
-// class RouteConfig
-// {
-//     public $filters = [
-//         'auth' => ['before' => ['dashboard', 'dashboard/*']]
-//     ];
-// }
-// $routes->group('', ['filter' => 'auth'], function ($routes) {
-//     $routes->get('/', 'Home::index');;
-//     $routes->get('dashboard', 'Home::index');
-// });
-// $routes->get('/dashboard', 'ClassController::dashboard', ['filter' => 'auth']);
-
-// $routes->group('class', ['filter' => 'auth'], function ($routes) {
-//     // Teacher-only routes
-//     $routes->get('create', 'ClassController::createForm', ['filter' => 'auth:teacher']);
-//     $routes->post('create', 'ClassController::create', ['filter' => 'auth:teacher']);
-
-//     // Student-only routes
-//     $routes->get('join', 'ClassController::joinForm', ['filter' => 'auth:student']);
-//     $routes->post('join', 'ClassController::join', ['filter' => 'auth:student']);
-
-//     // Common routes for both roles
-//     $routes->get('details/(:num)', 'ClassController::details/$1');
-// });
-
-// $routes->get('login', 'AuthController::showLoginForm');
-// $routes->post('login', 'AuthController::login');
-// $routes->get('register', 'AuthController::showRegistrationForm');
-// $routes->post('register', 'AuthController::register');
-// $routes->get('logout', 'AuthController::logout');
 
 $routes->group('', ['filter' => 'auth'], function ($routes) {
     $routes->get('/', 'ClassController::dashboard');
@@ -74,6 +35,11 @@ $routes->group('class', ['filter' => 'auth'], function ($routes) {
     $routes->get('(:num)/assignments/(:num)/delete', 'AssignmentController::delete/$1/$2', ['filter' => 'auth:teacher']);
     $routes->post('(:num)/assignments/(:num)/submit', 'AssignmentController::submit/$1/$2', ['filter' => 'auth:student']);
     $routes->post('(:num)/assignments/submission/(:num)/grade', 'AssignmentController::gradeSubmission/$1/$2', ['filter' => 'auth:teacher']);
+
+    $routes->get('(:num)/assignments/(:num)/download', 'AssignmentController::downloadFile/$1/$2');
+    $routes->get('(:num)/assignments/(:num)/preview', 'AssignmentController::previewFile/$1/$2');
+    $routes->get('(:num)/assignments/(:num)/submissions/(:num)/download', 'AssignmentController::downloadSubmissionFile/$1/$2/$3');
+    $routes->get('(:num)/assignments/(:num)/submissions/(:num)/preview', 'AssignmentController::previewSubmissionFile/$1/$2/$3');
 });
 
 $routes->get('login', 'AuthController::showLoginForm');

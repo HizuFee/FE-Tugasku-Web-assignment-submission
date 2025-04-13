@@ -3,6 +3,117 @@
 <?= $this->section('title') ?>Assignment Details<?= $this->endSection() ?>
 
 <?= $this->section('content') ?>
+<!-- Tambahkan jQuery dan Bootstrap JS -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+    .preview-container {
+        position: relative;
+        width: 100%;
+        height: 85vh;
+        overflow: hidden;
+    }
+
+    .preview-container iframe,
+    .preview-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        transition: transform 0.3s ease;
+    }
+
+    .zoom-controls {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        display: flex;
+        gap: 5px;
+        z-index: 100;
+    }
+
+    .zoom-controls button {
+        margin: 0 5px;
+        padding: 5px 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: white;
+        cursor: pointer;
+    }
+
+    .zoom-controls button:hover {
+        background: #f5f5f5;
+    }
+
+    .excel-preview {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .excel-preview table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+    .excel-preview th,
+    .excel-preview td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+
+    .excel-preview th {
+        background-color: #f5f5f5;
+        position: sticky;
+        top: 0;
+    }
+
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        width: 100%;
+    }
+
+    .loading-spinner {
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        border-top: 4px solid #3498db;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    .error-container {
+        padding: 20px;
+        text-align: center;
+        color: #721c24;
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 4px;
+        margin: 20px;
+    }
+
+    /* Styling untuk file preview */
+    .preview-content {
+        transform-origin: center;
+        transition: transform 0.2s ease;
+    }
+</style>
+
 <div class="container px-6 mx-auto grid">
     <!-- Header Section with Title and Actions -->
     <div class="flex justify-between items-center my-6">
@@ -71,6 +182,55 @@
                         <?= strtotime($assignment['deadline'] ?? 'now') < time() ? '<span class="px-2 py-1 text-xs font-semibold leading-tight text-red-700 bg-red-100 rounded-full dark:bg-red-700 dark:text-red-100 ml-2">Lewat</span>' : '' ?>
                     </div>
                 </div>
+
+                <div class="mb-4">
+                    <h5 class="text-sm font-medium text-gray-600 dark:text-gray-400 border-b pb-2">File Tugas</h5>
+                    <?php if (!empty($fileUrl)): ?>
+                        <div class="mt-2">
+                            <a href="<?= base_url("class/{$classId}/assignments/{$assignment['id']}/download") ?>"
+                                class="px-3 py-1 text-sm font-medium leading-5 text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                                <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                </svg>
+                                Unduh File
+                            </a>
+                            <?php if (in_array(pathinfo($assignment['file_path'] ?? '', PATHINFO_EXTENSION), ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'xlsx'])): ?>
+                                <button type="button"
+                                    onclick="showFilePreview('<?= base_url("class/{$classId}/assignments/{$assignment['id']}/preview?token=" . session()->get('auth_token')) ?>', null, 'assignment')"
+                                    class="ml-2 px-3 py-1 text-sm font-medium leading-5 text-blue-600 border border-blue-600 rounded-md hover:bg-blue-50">
+                                    <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Preview File
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                    <?php else: ?>
+                        <p class="text-gray-500 dark:text-gray-400 mt-2">Tidak ada file yang diupload untuk tugas ini.</p>
+                    <?php endif; ?>
+                </div>
+
+                <!-- File Preview Modal - Add this outside of your content div -->
+                <div class="modal fade" id="filePreviewModal" tabindex="-1" aria-labelledby="filePreviewModalLabel" inert>
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="filePreviewModalLabel">Preview Assignment: <?= esc($assignment['title']) ?></h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body" id="filePreviewContent">
+                                <div class="loading-container">
+                                    <div class="loading-spinner"></div>
+                                    <p class="mt-4 text-gray-600">Memuat preview file...</p>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Teacher view - List of submissions -->
@@ -81,6 +241,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
                         </svg>
                         Pengumpulan Siswa
+
                     </h4>
                     <div class="w-full overflow-hidden rounded-lg shadow-xs">
                         <div class="w-full overflow-x-auto">
@@ -105,7 +266,7 @@
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <p class="font-semibold"><?= esc($submission['student_name']) ?></p>
+                                                        <p class="font-semibold" id="student-name-<?= $submission['id'] ?>"><?= esc($submission['student_name']) ?></p>
                                                     </div>
                                                 </div>
                                             </td>
@@ -124,13 +285,22 @@
                                                 <div class="flex items-center space-x-2">
                                                     <?php if (in_array($submission['status'], ['submitted', 'late'])): ?>
                                                         <?php if (!empty($submission['file_path'])): ?>
-                                                            <a href="<?= base_url('../uploads/' . basename($submission['file_path'])) ?>"
+                                                            <a href="<?= base_url("class/{$classId}/assignments/{$assignment['id']}/submissions/{$submission['id']}/download") ?>"
                                                                 class="flex items-center justify-between px-2 py-2 text-sm font-medium leading-5 text-purple-600 rounded-lg dark:text-gray-400 focus:outline-none focus:shadow-outline-gray"
                                                                 target="_blank" title="Unduh pengumpulan">
                                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                                                                 </svg>
                                                             </a>
+                                                            <button type="button"
+                                                                onclick="showSubmissionPreview('<?= base_url("class/{$classId}/assignments/{$assignment['id']}/submissions/{$submission['id']}/preview") ?>', '<?= esc($submission['student_name']) ?>')"
+                                                                class="flex items-center justify-between px-2 py-2 text-sm font-medium leading-5 text-blue-600 rounded-lg dark:text-gray-400 focus:outline-none focus:shadow-outline-gray"
+                                                                title="Lihat preview">
+                                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                                                </svg>
+                                                            </button>
                                                         <?php endif; ?>
 
                                                         <button type="button"
@@ -274,12 +444,23 @@
                             <?php if (!empty($userSubmission['file_path'])): ?>
                                 <p class="mt-2 flex items-center">
                                     <strong>File Anda:</strong>
-                                    <a href="<?= base_url('../uploads/' . basename($userSubmission['file_path'])) ?>" class="ml-2 px-2 py-1 text-xs font-medium leading-5 text-white transition-colors duration-150 bg-purple-600 border border-transparent rounded-md active:bg-purple-600 hover:bg-purple-700 focus:outline-none focus:shadow-outline-purple" target="_blank">
+                                    <a href="<?= base_url("class/{$classId}/assignments/{$assignment['id']}/submissions/{$userSubmission['id']}/download") ?>" class="ml-2 px-2 py-1 text-xs font-medium leading-5 text-white transition-colors duration-150 bg-purple-600 border border-transparent rounded-md active:bg-purple-600 hover:bg-purple-700 focus:outline-none focus:shadow-outline-purple" target="_blank">
                                         <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                                         </svg>
                                         Unduh
                                     </a>
+                                    <?php if (in_array(pathinfo($userSubmission['file_path'] ?? '', PATHINFO_EXTENSION), ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'xlsx'])): ?>
+                                        <button type="button"
+                                            onclick="showSubmissionPreview('<?= base_url("class/{$classId}/assignments/{$assignment['id']}/submissions/{$userSubmission['id']}/preview") ?>', 'Pengumpulan Anda')"
+                                            class="ml-2 px-2 py-1 text-xs font-medium leading-5 text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                                            <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                            </svg>
+                                            Tampilkan Preview
+                                        </button>
+                                    <?php endif; ?>
                                 </p>
                             <?php endif; ?>
 
@@ -359,6 +540,74 @@
                             </div>
                         <?php endif; ?>
 
+                        <?php if (isset($userSubmission) && in_array($userSubmission['status'], ['submitted', 'late', 'graded']) && !empty($userSubmission['file_path'])): ?>
+                            <!-- Card untuk preview file yang diunggah oleh siswa -->
+                            <div class="min-w-0 p-4 bg-white rounded-lg shadow-xs dark:bg-gray-800 mt-6">
+                                <h4 class="mb-4 font-semibold text-gray-600 dark:text-gray-300">
+                                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                    Preview File Anda
+                                </h4>
+                                <div class="mb-4">
+                                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">File yang Anda unggah:</p>
+                                    <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-gray-700 dark:text-gray-300">
+                                                <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                                </svg>
+                                                <?= basename($userSubmission['file_path']) ?>
+                                            </span>
+                                            <div class="flex space-x-2">
+                                                <a href="<?= base_url("class/{$classId}/assignments/{$assignment['id']}/submissions/{$userSubmission['id']}/download") ?>"
+                                                    class="px-3 py-1 text-sm font-medium leading-5 text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                                                    <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                                    </svg>
+                                                    Unduh
+                                                </a>
+                                                <?php if (in_array(pathinfo($userSubmission['file_path'] ?? '', PATHINFO_EXTENSION), ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'xlsx'])): ?>
+                                                    <button type="button"
+                                                        onclick="showSubmissionPreview('<?= base_url("class/{$classId}/assignments/{$assignment['id']}/submissions/{$userSubmission['id']}/preview") ?>', 'Pengumpulan Anda')"
+                                                        class="ml-2 px-2 py-1 text-xs font-medium leading-5 text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                                                        <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                                        </svg>
+                                                        Tampilkan Preview
+                                                    </button>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Preview container untuk file siswa -->
+                                <div id="studentFilePreview" class="preview-container" style="height: 500px; border: 1px solid #e2e8f0; border-radius: 0.375rem; overflow: hidden;">
+                                    <span id="studentSubmissionName" class="text-sm font-medium text-gray-700 dark:text-gray-300"></span>
+                                    <div class="preview-content-container" style="height: 800px; border: 1px solid #e2e8f0; border-radius: 0.375rem; overflow: hidden;">
+                                        <div class="flex flex-col items-center justify-center h-full">
+                                            <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                            </svg>
+                                            <p class="mt-4 text-gray-600">Klik tombol Preview di atas untuk melihat file Anda</p>
+                                            <button type="button"
+                                                onclick="showSubmissionPreview('<?= base_url("class/{$classId}/assignments/{$assignment['id']}/submissions/{$userSubmission['id']}/preview") ?>', 'Pengumpulan Anda')"
+                                                class="mt-4 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                                                <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                                </svg>
+                                                Tampilkan Preview
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
                     <?php else: ?>
                         <?php if (strtotime($assignment['deadline']) < time()): ?>
                             <div class="p-3 mb-4 text-red-700 bg-red-100 rounded-lg dark:bg-red-800 dark:text-red-200">
@@ -400,6 +649,37 @@
 
             <!-- Assignment Stats (for teachers) -->
             <?php if ($userRole === 'teacher'): ?>
+                <!-- File Submission Preview untuk guru -->
+                <div class="min-w-0 p-4 bg-white rounded-lg shadow-xs dark:bg-gray-800 mb-6">
+                    <h4 class="mb-4 font-semibold text-gray-600 dark:text-gray-300">
+                        <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                        Preview File Submission
+                    </h4>
+
+                    <div class="mb-3 flex justify-between items-center">
+                        <span id="currentSubmissionStudent" class="text-sm font-medium text-gray-700 dark:text-gray-300"></span>
+                        <a id="currentSubmissionDownloadLink" href="#" class="hidden px-3 py-1 text-sm font-medium leading-5 text-white bg-blue-600 rounded-md hover:bg-blue-700">
+                            <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            Unduh File
+                        </a>
+                    </div>
+
+                    <div id="teacherFilePreview" class="preview-container" style="height: 400px; border: 1px solid #e2e8f0; border-radius: 0.375rem; overflow: hidden;">
+                        <div class="flex flex-col items-center justify-center h-full">
+                            <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <p class="mt-4 text-gray-600">Klik tombol Preview pada tabel pengumpulan untuk melihat file siswa</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistik Tugas -->
                 <div class="min-w-0 p-4 bg-white rounded-lg shadow-xs dark:bg-gray-800">
                     <h4 class="mb-4 font-semibold text-gray-600 dark:text-gray-300">
                         <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -546,6 +826,691 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Function untuk menampilkan preview file
+    function showFilePreview(previewUrl, containerId = null, type = 'assignment') {
+        const assignmentModal = document.getElementById('filePreviewModal');
+        const submissionModal = document.getElementById('submissionPreviewModal');
+        const assignmentModalContent = document.getElementById('filePreviewContent');
+        let submissionModalContent = null;
+
+        if (submissionModal) {
+            submissionModalContent = document.getElementById('submissionPreviewContent');
+        }
+
+        let modal, modalContent;
+
+        // Tentukan modal dan content yang akan digunakan berdasarkan type
+        if (type === 'submission') {
+            modal = submissionModal;
+            modalContent = submissionModalContent;
+
+            // Update judul modal submission dengan nama siswa jika tersedia
+            if (containerId && containerId.includes('student-')) {
+                const studentId = containerId.replace('student-', '');
+                const studentName = document.getElementById(`student-name-${studentId}`);
+                if (studentName) {
+                    document.getElementById('submissionPreviewModalLabel').textContent =
+                        `Preview Submission: ${studentName.textContent}`;
+                }
+            }
+        } else {
+            modal = assignmentModal;
+            modalContent = assignmentModalContent;
+        }
+
+        // Tampilkan loading state
+        modalContent.innerHTML = `
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <p class="mt-4 text-gray-600">Memuat preview file...</p>
+            </div>
+        `;
+
+        // Tampilkan modal
+        modal.classList.add('show');
+        modal.style.display = 'block';
+        modal.removeAttribute('inert');
+        document.body.classList.add('modal-open');
+        document.body.style.overflow = 'hidden';
+
+        // Fetch preview data
+        fetch(previewUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Gagal mengambil file: ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'error') {
+                    throw new Error(data.message);
+                }
+
+                if (!data.contentType) {
+                    throw new Error('Tipe file tidak valid');
+                }
+
+                let previewHtml = '';
+                const contentType = data.contentType.toLowerCase();
+
+                if (contentType.includes('pdf')) {
+                    previewHtml = `
+                        <div class="relative preview-container">
+                            <div class="zoom-controls">
+                                <button onclick="zoomIn('${type}')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                </button>
+                                <button onclick="zoomOut('${type}')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <iframe src="data:application/pdf;base64,${data.fileContent}" 
+                                class="w-full h-[85vh] border-0 preview-content"
+                                allow="fullscreen">
+                            </iframe>
+                        </div>
+                    `;
+                } else if (contentType.includes('excel') ||
+                    contentType.includes('spreadsheet') ||
+                    contentType.includes('xls') ||
+                    contentType.includes('xlsx')) {
+                    try {
+                        const workbook = XLSX.read(data.fileContent, {
+                            type: 'base64'
+                        });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const htmlTable = XLSX.utils.sheet_to_html(firstSheet);
+
+                        previewHtml = `
+                            <div class="excel-preview h-[85vh] overflow-auto preview-container">
+                                <div class="zoom-controls">
+                                    <button onclick="zoomIn('${type}')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                    </button>
+                                    <button onclick="zoomOut('${type}')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="preview-content">${htmlTable}</div>
+                            </div>
+                        `;
+                    } catch (error) {
+                        console.error('Error parsing Excel file:', error);
+                        throw new Error('Gagal memuat preview Excel: ' + error.message);
+                    }
+                } else if (contentType.includes('msword') ||
+                    contentType.includes('vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+                    previewHtml = `
+                        <div class="office-preview-container preview-container">
+                            <div class="zoom-controls">
+                                <button onclick="zoomIn('${type}')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                </button>
+                                <button onclick="zoomOut('${type}')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <iframe src="https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(data.fileUrl)}" 
+                                class="w-full h-[85vh] border-0 preview-content"
+                                allow="fullscreen">
+                            </iframe>
+                        </div>
+                    `;
+                } else if (contentType.includes('text')) {
+                    previewHtml = `
+                        <div class="text-preview-container preview-container">
+                            <div class="zoom-controls">
+                                <button onclick="zoomIn('${type}')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                </button>
+                                <button onclick="zoomOut('${type}')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <pre class="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-auto max-h-[85vh] preview-content">${atob(data.fileContent)}</pre>
+                        </div>
+                    `;
+                } else {
+                    previewHtml = `
+                        <div class="relative preview-container">
+                            <div class="zoom-controls">
+                                <button onclick="zoomIn('${type}')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                </button>
+                                <button onclick="zoomOut('${type}')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <img src="data:${data.contentType};base64,${data.fileContent}" 
+                                class="preview-image w-full h-[85vh] object-contain preview-content" alt="Preview">
+                        </div>
+                    `;
+                }
+
+                modalContent.innerHTML = previewHtml;
+            })
+            .catch(error => {
+                const errorHtml = `
+                    <div class="error-container flex flex-col items-center justify-center h-full">
+                        <svg class="w-12 h-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <h4 class="text-lg font-semibold mb-2 mt-4">Terjadi Kesalahan</h4>
+                        <p class="text-center">${error.message}</p>
+                        <button onclick="showFilePreview('${previewUrl}', '${containerId || ''}', '${type}')" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                            Coba Lagi
+                        </button>
+                    </div>
+                `;
+
+                modalContent.innerHTML = errorHtml;
+            });
+    }
+
+    // Ubah fungsi showSubmissionPreview untuk menampilkan di div bukan di modal
+    function showSubmissionPreview(previewUrl, studentName = '') {
+        // Untuk siswa, gunakan container studentFilePreview
+        if (document.getElementById('studentFilePreview') && previewUrl.includes('submissions')) {
+            const previewContainer = document.getElementById('studentFilePreview');
+
+            // Update nama student
+            const studentNameDisplay = document.getElementById('studentSubmissionName');
+            if (studentNameDisplay) {
+                studentNameDisplay.textContent = studentName ? `File Submission: ${studentName}` : '';
+            }
+
+            // Tampilkan loading state
+            previewContainer.querySelector('.preview-content-container').innerHTML = `
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <p class="mt-4 text-gray-600">Memuat preview file submission...</p>
+                </div>
+            `;
+
+            // Fetch preview data untuk siswa
+            fetch(previewUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Gagal mengambil file: ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 'error') {
+                        throw new Error(data.message);
+                    }
+
+                    if (!data.contentType) {
+                        throw new Error('Tipe file tidak valid');
+                    }
+
+                    let previewHtml = '';
+                    const contentType = data.contentType.toLowerCase();
+
+                    if (contentType.includes('pdf')) {
+                        previewHtml = `
+                            <div class="relative preview-container">
+                                <div class="zoom-controls">
+                                    <button onclick="zoomIn('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                    </button>
+                                    <button onclick="zoomOut('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <iframe src="data:application/pdf;base64,${data.fileContent}" 
+                                    class="w-full h-[85vh] border-0 preview-content"
+                                    allow="fullscreen">
+                                </iframe>
+                            </div>
+                        `;
+                    } else if (contentType.includes('excel') ||
+                        contentType.includes('spreadsheet') ||
+                        contentType.includes('xls') ||
+                        contentType.includes('xlsx')) {
+                        try {
+                            const workbook = XLSX.read(data.fileContent, {
+                                type: 'base64'
+                            });
+                            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                            const htmlTable = XLSX.utils.sheet_to_html(firstSheet);
+
+                            previewHtml = `
+                                <div class="excel-preview h-[85vh] overflow-auto preview-container">
+                                    <div class="zoom-controls">
+                                        <button onclick="zoomIn('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                            </svg>
+                                        </button>
+                                        <button onclick="zoomOut('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="preview-content">${htmlTable}</div>
+                                </div>
+                            `;
+                        } catch (error) {
+                            console.error('Error parsing Excel file:', error);
+                            throw new Error('Gagal memuat preview Excel: ' + error.message);
+                        }
+                    } else if (contentType.includes('text')) {
+                        previewHtml = `
+                            <div class="text-preview-container preview-container">
+                                <div class="zoom-controls">
+                                    <button onclick="zoomIn('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                    </button>
+                                    <button onclick="zoomOut('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <pre class="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-auto max-h-[85vh] preview-content">${atob(data.fileContent)}</pre>
+                            </div>
+                        `;
+                    } else {
+                        previewHtml = `
+                            <div class="relative preview-container">
+                                <div class="zoom-controls">
+                                    <button onclick="zoomIn('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                    </button>
+                                    <button onclick="zoomOut('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <img src="data:${data.contentType};base64,${data.fileContent}" 
+                                    class="preview-image w-full h-[85vh] object-contain preview-content" alt="Preview">
+                            </div>
+                        `;
+                    }
+
+                    previewContainer.querySelector('.preview-content-container').innerHTML = previewHtml;
+                })
+                .catch(error => {
+                    const errorHtml = `
+                        <div class="flex flex-col items-center justify-center h-full">
+                            <svg class="w-12 h-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <h4 class="text-lg font-semibold mb-2 mt-4">Terjadi Kesalahan</h4>
+                            <p class="text-center">${error.message}</p>
+                            <button onclick="showSubmissionPreview('${previewUrl}', '${studentName}')" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                                Coba Lagi
+                            </button>
+                        </div>
+                    `;
+
+                    previewContainer.querySelector('.preview-content-container').innerHTML = errorHtml;
+                });
+            return;
+        }
+
+        // Untuk guru, tampilkan di preview container baru
+        const previewContainer = document.getElementById('teacherFilePreview');
+        if (!previewContainer) return;
+
+        // Tampilkan loading state
+        previewContainer.innerHTML = `
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <p class="mt-4 text-gray-600">Memuat preview file submission...</p>
+            </div>
+        `;
+
+        // Update nama siswa yang sedang dilihat
+        const studentNameDisplay = document.getElementById('currentSubmissionStudent');
+        if (studentNameDisplay) {
+            studentNameDisplay.textContent = studentName ? `File Submission: ${studentName}` : '';
+        }
+
+        // Ambil file ID dari URL untuk membuat link download
+        const submissionIdMatch = previewUrl.match(/submissions\/(\d+)\/preview/);
+        if (submissionIdMatch && submissionIdMatch[1]) {
+            const submissionId = submissionIdMatch[1];
+            const downloadLink = document.getElementById('currentSubmissionDownloadLink');
+            if (downloadLink) {
+                downloadLink.href = previewUrl.replace('/preview', '/download');
+                downloadLink.classList.remove('hidden');
+            }
+        }
+
+        // Fetch preview data
+        fetch(previewUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Gagal mengambil file: ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'error') {
+                    throw new Error(data.message);
+                }
+
+                if (!data.contentType) {
+                    throw new Error('Tipe file tidak valid');
+                }
+
+                let previewHtml = '';
+                const contentType = data.contentType.toLowerCase();
+
+                if (contentType.includes('pdf')) {
+                    previewHtml = `
+                        <div class="relative preview-container">
+                            <div class="zoom-controls">
+                                <button onclick="zoomIn('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                </button>
+                                <button onclick="zoomOut('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <iframe src="data:application/pdf;base64,${data.fileContent}" 
+                                class="w-full h-[85vh] border-0 preview-content"
+                                allow="fullscreen">
+                            </iframe>
+                        </div>
+                    `;
+                } else if (contentType.includes('excel') ||
+                    contentType.includes('spreadsheet') ||
+                    contentType.includes('xls') ||
+                    contentType.includes('xlsx')) {
+                    try {
+                        const workbook = XLSX.read(data.fileContent, {
+                            type: 'base64'
+                        });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const htmlTable = XLSX.utils.sheet_to_html(firstSheet);
+
+                        previewHtml = `
+                            <div class="excel-preview h-[85vh] overflow-auto preview-container">
+                                <div class="zoom-controls">
+                                    <button onclick="zoomIn('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                        </svg>
+                                    </button>
+                                    <button onclick="zoomOut('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="preview-content">${htmlTable}</div>
+                            </div>
+                        `;
+                    } catch (error) {
+                        console.error('Error parsing Excel file:', error);
+                        throw new Error('Gagal memuat preview Excel: ' + error.message);
+                    }
+                } else if (contentType.includes('msword') ||
+                    contentType.includes('vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+                    previewHtml = `
+                        <div class="office-preview-container preview-container">
+                            <div class="zoom-controls">
+                                <button onclick="zoomIn('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                </button>
+                                <button onclick="zoomOut('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <iframe src="https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(data.fileUrl)}" 
+                                class="w-full h-[85vh] border-0 preview-content"
+                                allow="fullscreen">
+                            </iframe>
+                        </div>
+                    `;
+                } else if (contentType.includes('text')) {
+                    previewHtml = `
+                        <div class="text-preview-container preview-container">
+                            <div class="zoom-controls">
+                                <button onclick="zoomIn('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                </button>
+                                <button onclick="zoomOut('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <pre class="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-auto max-h-[85vh] preview-content">${atob(data.fileContent)}</pre>
+                        </div>
+                    `;
+                } else {
+                    previewHtml = `
+                        <div class="relative preview-container">
+                            <div class="zoom-controls">
+                                <button onclick="zoomIn('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                </button>
+                                <button onclick="zoomOut('submission')" class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <img src="data:${data.contentType};base64,${data.fileContent}" 
+                                class="preview-image w-full h-[85vh] object-contain preview-content" alt="Preview">
+                        </div>
+                    `;
+                }
+
+                previewContainer.innerHTML = previewHtml;
+            })
+            .catch(error => {
+                const errorHtml = `
+                    <div class="flex flex-col items-center justify-center h-full">
+                        <svg class="w-12 h-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <h4 class="text-lg font-semibold mb-2 mt-4">Terjadi Kesalahan</h4>
+                        <p class="text-center">${error.message}</p>
+                        <button onclick="showSubmissionPreview('${previewUrl}', '${studentName}')" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+                            Coba Lagi
+                        </button>
+                    </div>
+                `;
+
+                previewContainer.innerHTML = errorHtml;
+            });
+    }
+
+    // Fungsi zoom untuk teacher preview
+    function zoomTeacherPreview(zoomDelta) {
+        const container = document.getElementById('teacherFilePreview');
+        if (container) {
+            const previewElement = container.querySelector('.preview-content, .preview-image, iframe, .excel-preview table, .text-preview-container pre');
+            if (previewElement) {
+                const currentScale = previewElement.style.transform ?
+                    parseFloat(previewElement.style.transform.replace('scale(', '').replace(')', '')) : 1;
+                const newScale = currentScale + zoomDelta;
+                if (newScale >= 0.5) { // Batasi zoom out minimum
+                    previewElement.style.transform = `scale(${newScale})`;
+                }
+            }
+        }
+    }
+
+    // Function untuk zoom yang digunakan di semua jenis preview
+    function zoomIn(type = 'assignment') {
+        // Untuk modal preview (assignment)
+        const modalId = type === 'submission' ? 'submissionPreviewContent' : 'filePreviewContent';
+        const container = document.querySelector(`#${modalId} .preview-container`);
+        if (container) {
+            const currentScale = container.style.transform ? parseFloat(container.style.transform.replace('scale(', '').replace(')', '')) : 1;
+            container.style.transform = `scale(${currentScale + 0.1})`;
+        }
+
+        // Juga mencoba zoom pada elemen spesifik dalam container
+        const previewElement = document.querySelector(`#${modalId} .preview-image, #${modalId} iframe, #${modalId} .excel-preview table, #${modalId} .text-preview-container pre`);
+        if (previewElement) {
+            const currentScale = previewElement.style.transform ? parseFloat(previewElement.style.transform.replace('scale(', '').replace(')', '')) : 1;
+            previewElement.style.transform = `scale(${currentScale + 0.1})`;
+        }
+
+        // Untuk container guru (teacherFilePreview)
+        if (type === 'submission') {
+            const teacherContainer = document.getElementById('teacherFilePreview');
+            if (teacherContainer) {
+                const previewElement = teacherContainer.querySelector('.preview-content, .preview-image, iframe, .excel-preview table, .text-preview-container pre');
+                if (previewElement) {
+                    const currentScale = previewElement.style.transform ?
+                        parseFloat(previewElement.style.transform.replace('scale(', '').replace(')', '')) : 1;
+                    previewElement.style.transform = `scale(${currentScale + 0.1})`;
+                }
+            }
+
+            // Tambahkan dukungan untuk container siswa (studentFilePreview)
+            const studentContainer = document.getElementById('studentFilePreview');
+            if (studentContainer) {
+                const previewElement = studentContainer.querySelector('.preview-content-container .preview-content, .preview-content-container .preview-image, .preview-content-container iframe, .preview-content-container .excel-preview table, .preview-content-container .text-preview-container pre');
+                if (previewElement) {
+                    const currentScale = previewElement.style.transform ?
+                        parseFloat(previewElement.style.transform.replace('scale(', '').replace(')', '')) : 1;
+                    previewElement.style.transform = `scale(${currentScale + 0.1})`;
+                }
+            }
+        }
+    }
+
+    function zoomOut(type = 'assignment') {
+        // Untuk modal preview (assignment)
+        const modalId = type === 'submission' ? 'submissionPreviewContent' : 'filePreviewContent';
+        const container = document.querySelector(`#${modalId} .preview-container`);
+        if (container) {
+            const currentScale = container.style.transform ? parseFloat(container.style.transform.replace('scale(', '').replace(')', '')) : 1;
+            if (currentScale > 0.5) { // Batasi zoom out minimum
+                container.style.transform = `scale(${currentScale - 0.1})`;
+            }
+        }
+
+        // Juga mencoba zoom pada elemen spesifik dalam container
+        const previewElement = document.querySelector(`#${modalId} .preview-image, #${modalId} iframe, #${modalId} .excel-preview table, #${modalId} .text-preview-container pre`);
+        if (previewElement) {
+            const currentScale = previewElement.style.transform ? parseFloat(previewElement.style.transform.replace('scale(', '').replace(')', '')) : 1;
+            if (currentScale > 0.5) { // Batasi zoom out minimum
+                previewElement.style.transform = `scale(${currentScale - 0.1})`;
+            }
+        }
+
+        // Untuk container guru (teacherFilePreview)
+        if (type === 'submission') {
+            const teacherContainer = document.getElementById('teacherFilePreview');
+            if (teacherContainer) {
+                const previewElement = teacherContainer.querySelector('.preview-content, .preview-image, iframe, .excel-preview table, .text-preview-container pre');
+                if (previewElement) {
+                    const currentScale = previewElement.style.transform ?
+                        parseFloat(previewElement.style.transform.replace('scale(', '').replace(')', '')) : 1;
+                    if (currentScale > 0.5) { // Batasi zoom out minimum
+                        previewElement.style.transform = `scale(${currentScale - 0.1})`;
+                    }
+                }
+            }
+
+            // Tambahkan dukungan untuk container siswa (studentFilePreview)
+            const studentContainer = document.getElementById('studentFilePreview');
+            if (studentContainer) {
+                const previewElement = studentContainer.querySelector('.preview-content-container .preview-content, .preview-content-container .preview-image, .preview-content-container iframe, .preview-content-container .excel-preview table, .preview-content-container .text-preview-container pre');
+                if (previewElement) {
+                    const currentScale = previewElement.style.transform ?
+                        parseFloat(previewElement.style.transform.replace('scale(', '').replace(')', '')) : 1;
+                    if (currentScale > 0.5) { // Batasi zoom out minimum
+                        previewElement.style.transform = `scale(${currentScale - 0.1})`;
+                    }
+                }
+            }
+        }
+    }
+
+    // Event listener untuk menutup modal
+    document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(button => {
+        button.addEventListener('click', () => {
+            closeModal(button.closest('.modal'));
+        });
+    });
+
+    // Function untuk menutup modal
+    function closeModal(modal) {
+        if (!modal) return;
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+        modal.setAttribute('inert', '');
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+    }
+
+    // Modal backdrop click to close
+    document.getElementById('filePreviewModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeModal(this);
+        }
+    });
+
+    if (document.getElementById('submissionPreviewModal')) {
+        document.getElementById('submissionPreviewModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal(this);
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        <?php if (!empty($fileUrl)): ?>
+            // Tampilkan preview assignment file otomatis saat halaman dimuat
+            showFilePreview('<?= base_url("class/{$classId}/assignments/{$assignment['id']}/preview") ?>', null, 'assignment');
+        <?php endif; ?>
+    });
+</script>
 
 <?php
 // Helper function for submission status badges

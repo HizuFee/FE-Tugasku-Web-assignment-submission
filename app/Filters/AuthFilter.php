@@ -13,7 +13,7 @@ class AuthFilter implements FilterInterface
         // Check if user is logged in
         if (!session()->has('user')) {
             return redirect()->to('/login')
-                ->with('error', 'Please log in to access this page');
+                ->with('error', 'Please log in');
         }
 
         // If role is specified in arguments, check user's role

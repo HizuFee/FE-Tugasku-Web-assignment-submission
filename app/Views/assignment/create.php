@@ -18,7 +18,7 @@
     <?= $this->include('partials/alerts') ?>
 
     <div class="px-4 py-3 mb-8 bg-white rounded-lg shadow-md dark:bg-gray-800">
-        <form action="<?= base_url("class/{$class['id']}/assignments/create") ?>" method="post">
+        <form action="<?= base_url("class/{$class['id']}/assignments/create") ?>" method="post" enctype="multipart/form-data">
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-400" for="title">
                     Judul Tugas
@@ -55,6 +55,18 @@
                     name="deadline"
                     value="<?= old('deadline') ?>"
                     required />
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-400" for="file">
+                    File Lampiran (Opsional)
+                </label>
+                <input
+                    class="block w-full mt-1 text-sm dark:border-gray-600 dark:bg-gray-700 focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:text-gray-300 dark:focus:shadow-outline-gray form-input"
+                    type="file"
+                    id="file"
+                    name="file" />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Format yang didukung: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, TXT, JPG, PNG, ZIP, RAR, dll (Max: 10MB)</p>
             </div>
 
             <div class="flex justify-end">

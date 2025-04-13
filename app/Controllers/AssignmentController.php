@@ -84,8 +84,14 @@ class AssignmentController extends Controller
         $rules = [
             'title' => 'required|min_length[3]',
             'description' => 'required',
-            'deadline' => 'required'
+            'deadline' => 'required',
+            'file' => 'uploaded[file]|max_size[file,10240]|ext_in[file,pdf,doc,docx,ppt,pptx,xls,xlsx,txt,rtf,odt,jpg,jpeg,png,gif,bmp,zip,rar,tar,7z,csv]',
         ];
+
+        // Make file upload optional
+        if (!$this->request->getFile('file')->isValid()) {
+            unset($rules['file']);
+        }
 
         if (!$this->validate($rules)) {
             return redirect()->back()
@@ -100,21 +106,63 @@ class AssignmentController extends Controller
             'deadline' => $this->request->getPost('deadline')
         ];
 
-        $apiUrl = 'http://localhost:3000/api/assignment/create';
-        $headers = [
-            'x-auth-token' => session()->get('auth_token')
-        ];
+        // Handle file upload
+        $file = $this->request->getFile('file');
 
-        $response = api_request($apiUrl, 'POST', $data, $headers);
+        if ($file && $file->isValid() && !$file->hasMoved()) {
+            // Use cURL to handle file upload to API
+            $apiUrl = 'http://localhost:3000/api/assignment/create';
+            $headers = [
+                'x-auth-token' => session()->get('auth_token')
+            ];
 
-        if ($response && isset($response['assignment'])) {
-            return redirect()->to("/class/{$classId}/assignments")
-                ->with('success', 'Assignment created successfully!');
+            // Create a CURLFile object
+            $tmpName = $file->getTempName();
+            $name = $file->getName();
+
+            $curl = curl_init($apiUrl);
+            $postData = array_merge($data, ['file' => curl_file_create($tmpName, $file->getClientMimeType(), $name)]);
+
+            curl_setopt($curl, CURLOPT_POST, true);
+            curl_setopt($curl, CURLOPT_POSTFIELDS, $postData);
+            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($curl, CURLOPT_HTTPHEADER, [
+                'x-auth-token: ' . session()->get('auth_token')
+            ]);
+
+            $response = curl_exec($curl);
+            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            curl_close($curl);
+
+            if ($httpCode === 201) {
+                $response = json_decode($response, true);
+                return redirect()->to("/class/{$classId}/assignments")
+                    ->with('success', 'Assignment created successfully!');
+            } else {
+                $responseData = json_decode($response, true);
+                $errorMessage = $responseData['message'] ?? 'Failed to create assignment. Please try again.';
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', $errorMessage);
+            }
         } else {
-            $errorMessage = $response['message'] ?? 'Failed to create assignment. Please try again.';
-            return redirect()->back()
-                ->withInput()
-                ->with('error', $errorMessage);
+            // No file uploaded, use regular API request
+            $apiUrl = 'http://localhost:3000/api/assignment/create';
+            $headers = [
+                'x-auth-token' => session()->get('auth_token')
+            ];
+
+            $response = api_request($apiUrl, 'POST', $data, $headers);
+
+            if ($response && isset($response['assignment'])) {
+                return redirect()->to("/class/{$classId}/assignments")
+                    ->with('success', 'Assignment created successfully!');
+            } else {
+                $errorMessage = $response['message'] ?? 'Failed to create assignment. Please try again.';
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', $errorMessage);
+            }
         }
     }
 
@@ -135,13 +183,21 @@ class AssignmentController extends Controller
 
         $userRole = session()->get('user')['role'];
 
+        // Prepare file URL with token
+        $fileUrl = null;
+        if (!empty($response['assignment']['file_path'])) {
+            $token = session()->get('auth_token');
+            $fileUrl = "http://localhost:3000/api/assignment/{$assignmentId}/download?token=" . $token;
+        }
+
         return view('assignment/details', [
             'assignment' => $response['assignment'] ?? [],
             'userRole' => $userRole,
             'userClassRole' => $response['userClassRole'] ?? 'student',
             'submissions' => $response['submissions'] ?? [],
             'userSubmission' => $response['userSubmission'] ?? null,
-            'classId' => $classId
+            'classId' => $classId,
+            'fileUrl' => $fileUrl
         ]);
     }
 
@@ -189,8 +245,14 @@ class AssignmentController extends Controller
         $rules = [
             'title' => 'required|min_length[3]',
             'description' => 'required',
-            'deadline' => 'required'
+            'deadline' => 'required',
+            'file' => 'max_size[file,10240]|ext_in[file,pdf,doc,docx,ppt,pptx,xls,xlsx,txt,rtf,odt,jpg,jpeg,png,gif,bmp,zip,rar,tar,7z,csv]',
         ];
+
+        // Check if file exists and is valid
+        if (!$this->request->getFile('file')->isValid()) {
+            unset($rules['file']);
+        }
 
         if (!$this->validate($rules)) {
             return redirect()->back()
@@ -204,21 +266,64 @@ class AssignmentController extends Controller
             'deadline' => $this->request->getPost('deadline')
         ];
 
-        $apiUrl = "http://localhost:3000/api/assignment/{$assignmentId}";
-        $headers = [
-            'x-auth-token' => session()->get('auth_token')
-        ];
+        // Handle file upload
+        $file = $this->request->getFile('file');
 
-        $response = api_request($apiUrl, 'PUT', $data, $headers);
+        if ($file && $file->isValid() && !$file->hasMoved()) {
+            // Use cURL to handle file upload to API
+            $apiUrl = "http://localhost:3000/api/assignment/{$assignmentId}";
+            $headers = [
+                'x-auth-token' => session()->get('auth_token')
+            ];
 
-        if ($response && !isset($response['error'])) {
-            return redirect()->to("/class/{$classId}/assignments/{$assignmentId}")
-                ->with('success', 'Assignment updated successfully');
+            // Create a CURLFile object
+            $tmpName = $file->getTempName();
+            $name = $file->getName();
+
+            // For PUT request with file upload, we need to use a custom method
+            $curl = curl_init($apiUrl);
+            $postData = array_merge($data, ['file' => curl_file_create($tmpName, $file->getClientMimeType(), $name)]);
+
+            curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "PUT");
+            curl_setopt($curl, CURLOPT_POSTFIELDS, $postData);
+            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($curl, CURLOPT_HTTPHEADER, [
+                'x-auth-token: ' . session()->get('auth_token')
+            ]);
+
+            $response = curl_exec($curl);
+            $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+            curl_close($curl);
+
+            if ($httpCode === 200) {
+                $response = json_decode($response, true);
+                return redirect()->to("/class/{$classId}/assignments/{$assignmentId}")
+                    ->with('success', 'Assignment updated successfully');
+            } else {
+                $responseData = json_decode($response, true);
+                $errorMessage = $responseData['message'] ?? 'Failed to update assignment. Please try again.';
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', $errorMessage);
+            }
         } else {
-            $errorMessage = $response['message'] ?? 'Failed to update assignment. Please try again.';
-            return redirect()->back()
-                ->withInput()
-                ->with('error', $errorMessage);
+            // No file uploaded, use regular API request
+            $apiUrl = "http://localhost:3000/api/assignment/{$assignmentId}";
+            $headers = [
+                'x-auth-token' => session()->get('auth_token')
+            ];
+
+            $response = api_request($apiUrl, 'PUT', $data, $headers);
+
+            if ($response && !isset($response['error'])) {
+                return redirect()->to("/class/{$classId}/assignments/{$assignmentId}")
+                    ->with('success', 'Assignment updated successfully');
+            } else {
+                $errorMessage = $response['message'] ?? 'Failed to update assignment. Please try again.';
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', $errorMessage);
+            }
         }
     }
 
@@ -246,6 +351,88 @@ class AssignmentController extends Controller
         }
     }
 
+    // Download assignment file
+    public function downloadFile($classId, $assignmentId)
+    {
+        $token = session()->get('auth_token');
+        if (!$token) {
+            return redirect()->to("/class/{$classId}/assignments/{$assignmentId}")
+                ->with('error', 'Authentication required');
+        }
+
+        // Pastikan parameter download=true
+        $downloadUrl = "http://localhost:3000/api/assignment/{$assignmentId}/download?token={$token}&download=true";
+
+        try {
+            $client = \Config\Services::curlrequest();
+            $response = $client->request('HEAD', $downloadUrl, [
+                'http_errors' => false,
+                'timeout' => 10
+            ]);
+
+            if ($response->getStatusCode() === 200) {
+                return redirect()->to($downloadUrl);
+            } else {
+                return redirect()->to("/class/{$classId}/assignments/{$assignmentId}")
+                    ->with('error', 'Could not download file. Server responded with: ' . $response->getStatusCode());
+            }
+        } catch (\Exception $e) {
+            return redirect()->to("/class/{$classId}/assignments/{$assignmentId}")
+                ->with('error', 'Connection error: ' . $e->getMessage());
+        }
+    }
+
+    // Get file content for preview
+    public function previewFile($classId, $assignmentId)
+    {
+        try {
+            $token = session()->get('auth_token');
+            if (!$token) {
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'Token tidak ditemukan'
+                ]);
+            }
+
+            $client = \Config\Services::curlrequest();
+            $response = $client->get("http://localhost:3000/api/assignment/{$assignmentId}/download", [
+                'headers' => [
+                    'x-auth-token' => $token
+                ],
+                'query' => [
+                    'download' => 'false',
+                    'forcePreview' => 'true'
+                ]
+            ]);
+
+            if ($response->getStatusCode() !== 200) {
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'Gagal mengambil file'
+                ]);
+            }
+
+            $contentType = $response->getHeaderLine('Content-Type');
+            if (empty($contentType)) {
+                $contentType = 'application/octet-stream';
+            }
+
+            $fileContent = $response->getBody();
+
+            return $this->response->setJSON([
+                'status' => 'success',
+                'contentType' => $contentType,
+                'fileContent' => base64_encode($fileContent),
+                'fileUrl' => "http://localhost:3000/api/assignment/{$assignmentId}/download?token={$token}"
+            ]);
+        } catch (\Exception $e) {
+            return $this->response->setJSON([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
     // Submit assignment (for students)
     public function submit($classId, $assignmentId)
     {
@@ -256,8 +443,14 @@ class AssignmentController extends Controller
 
         $validation = \Config\Services::validation();
         $rules = [
-            'notes' => 'permit_empty'
+            'notes' => 'permit_empty',
+            'file' => 'max_size[file,10240]|ext_in[file,pdf,doc,docx,ppt,pptx,xls,xlsx,txt,rtf,odt,jpg,jpeg,png,gif,bmp,zip,rar,tar,7z,csv]',
         ];
+
+        // Check if file exists and is valid
+        if (!$this->request->getFile('file')->isValid()) {
+            unset($rules['file']);
+        }
 
         if (!$this->validate($rules)) {
             return redirect()->back()
@@ -279,11 +472,6 @@ class AssignmentController extends Controller
             $apiUrl = "http://localhost:3000/api/assignment/{$assignmentId}/submit";
             $headers = [
                 'x-auth-token' => session()->get('auth_token')
-            ];
-
-            // Create multipart form data
-            $data = [
-                'notes' => $notes
             ];
 
             // Use cURL to handle file upload to API
@@ -388,6 +576,89 @@ class AssignmentController extends Controller
             return redirect()->back()
                 ->withInput()
                 ->with('error', $response['message'] ?? 'Failed to grade submission. Please try again.');
+        }
+    }
+
+    public function downloadSubmissionFile($classId, $assignmentId, $submissionId)
+    {
+        try {
+            $token = session()->get('auth_token');
+            if (!$token) {
+                return redirect()->to("/class/{$classId}/assignments/{$assignmentId}")
+                    ->with('error', 'Token tidak ditemukan');
+            }
+
+            $client = \Config\Services::curlrequest();
+            $response = $client->get("http://localhost:3000/api/assignment/{$assignmentId}/submissions/{$submissionId}/download", [
+                'headers' => [
+                    'x-auth-token' => $token
+                ]
+            ]);
+
+            if ($response->getStatusCode() !== 200) {
+                return redirect()->to("/class/{$classId}/assignments/{$assignmentId}")
+                    ->with('error', 'Gagal mengunduh file');
+            }
+
+            // Get filename from Content-Disposition header
+            $contentDisposition = $response->getHeaderLine('Content-Disposition');
+            preg_match('/filename="([^"]+)"/', $contentDisposition, $matches);
+            $filename = $matches[1] ?? 'submission_file';
+
+            // Set headers for download
+            $this->response->setHeader('Content-Type', 'application/octet-stream');
+            $this->response->setHeader('Content-Disposition', 'attachment; filename="' . $filename . '"');
+
+            return $this->response->setBody($response->getBody());
+        } catch (\Exception $e) {
+            return redirect()->to("/class/{$classId}/assignments/{$assignmentId}")
+                ->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
+    }
+
+    public function previewSubmissionFile($classId, $assignmentId, $submissionId)
+    {
+        try {
+            $token = session()->get('auth_token');
+            if (!$token) {
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'Token tidak ditemukan'
+                ]);
+            }
+
+            $client = \Config\Services::curlrequest();
+            $response = $client->get("http://localhost:3000/api/assignment/{$assignmentId}/submissions/{$submissionId}/preview", [
+                'headers' => [
+                    'x-auth-token' => $token
+                ]
+            ]);
+
+            if ($response->getStatusCode() !== 200) {
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'Gagal mengambil file'
+                ]);
+            }
+
+            $contentType = $response->getHeaderLine('Content-Type');
+            if (empty($contentType)) {
+                $contentType = 'application/octet-stream';
+            }
+
+            $fileContent = $response->getBody();
+
+            return $this->response->setJSON([
+                'status' => 'success',
+                'contentType' => $contentType,
+                'fileContent' => base64_encode($fileContent),
+                'fileUrl' => "http://localhost:3000/api/assignment/{$assignmentId}/submissions/{$submissionId}/download?token={$token}"
+            ]);
+        } catch (\Exception $e) {
+            return $this->response->setJSON([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ]);
         }
     }
 }
