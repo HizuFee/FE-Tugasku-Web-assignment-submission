@@ -25,6 +25,14 @@ $routes->group('class', ['filter' => 'auth'], function ($routes) {
     $routes->post('update/(:num)', 'ClassController::update/$1', ['filter' => 'auth:teacher']);
     $routes->get('delete/(:num)', 'ClassController::delete/$1', ['filter' => 'auth:teacher']);
 
+    // Topic routes
+    $routes->group('(:num)/topics', ['filter' => 'auth:teacher'], function ($routes) {
+        $routes->get('', 'TopicController::getClassTopics/$1');
+        $routes->post('', 'TopicController::create');
+        $routes->put('(:num)', 'TopicController::update/$2');
+        $routes->delete('(:num)', 'TopicController::delete/$2');
+    });
+
     // Assignment routes
     $routes->get('(:num)/assignments', 'AssignmentController::listAssignments/$1');
     $routes->get('(:num)/assignments/create', 'AssignmentController::createForm/$1', ['filter' => 'auth:teacher']);
@@ -36,10 +44,17 @@ $routes->group('class', ['filter' => 'auth'], function ($routes) {
     $routes->post('(:num)/assignments/(:num)/submit', 'AssignmentController::submit/$1/$2', ['filter' => 'auth:student']);
     $routes->post('(:num)/assignments/submission/(:num)/grade', 'AssignmentController::gradeSubmission/$1/$2', ['filter' => 'auth:teacher']);
 
+    // Assignment file routes
     $routes->get('(:num)/assignments/(:num)/download', 'AssignmentController::downloadFile/$1/$2');
     $routes->get('(:num)/assignments/(:num)/preview', 'AssignmentController::previewFile/$1/$2');
     $routes->get('(:num)/assignments/(:num)/submissions/(:num)/download', 'AssignmentController::downloadSubmissionFile/$1/$2/$3');
     $routes->get('(:num)/assignments/(:num)/submissions/(:num)/preview', 'AssignmentController::previewSubmissionFile/$1/$2/$3');
+
+    // Assignment topic routes
+    $routes->group('(:num)/assignments/(:num)/topics', ['filter' => 'auth:teacher'], function ($routes) {
+        $routes->get('', 'TopicController::getAssignmentTopics/$2');
+        $routes->post('', 'TopicController::assignToAssignment/$2');
+    });
 });
 
 $routes->get('login', 'AuthController::showLoginForm');

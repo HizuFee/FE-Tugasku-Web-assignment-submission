@@ -283,7 +283,7 @@
                                             </td>
                                             <td class="px-4 py-3 text-sm">
                                                 <div class="flex items-center space-x-2">
-                                                    <?php if (in_array($submission['status'], ['submitted', 'late'])): ?>
+                                                    <?php if (in_array($submission['status'], ['submitted', 'late', 'graded'])): ?>
                                                         <?php if (!empty($submission['file_path'])): ?>
                                                             <a href="<?= base_url("class/{$classId}/assignments/{$assignment['id']}/submissions/{$submission['id']}/download") ?>"
                                                                 class="flex items-center justify-between px-2 py-2 text-sm font-medium leading-5 text-purple-600 rounded-lg dark:text-gray-400 focus:outline-none focus:shadow-outline-gray"
@@ -303,102 +303,110 @@
                                                             </button>
                                                         <?php endif; ?>
 
-                                                        <button type="button"
-                                                            class="flex items-center justify-between px-2 py-2 text-sm font-medium leading-5 text-green-600 rounded-lg dark:text-gray-400 focus:outline-none focus:shadow-outline-gray"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#gradeModal<?= $submission['id'] ?>" title="Nilai pengumpulan">
-                                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                                            </svg>
-                                                        </button>
+                                                        <?php if ($submission['status'] === 'graded'): ?>
+                                                            <button type="button"
+                                                                class="flex items-center justify-between px-2 py-2 text-sm font-medium leading-5 text-green-600 rounded-lg dark:text-gray-400 focus:outline-none focus:shadow-outline-gray"
+                                                                onclick="openGradeModal(<?= $submission['id'] ?>)"
+                                                                title="Edit nilai">
+                                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                                </svg>
+                                                            </button>
+                                                        <?php else: ?>
+                                                            <button type="button"
+                                                                class="flex items-center justify-between px-2 py-2 text-sm font-medium leading-5 text-green-600 rounded-lg dark:text-gray-400 focus:outline-none focus:shadow-outline-gray"
+                                                                onclick="openGradeModal(<?= $submission['id'] ?>)"
+                                                                title="Nilai pengumpulan">
+                                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                                                </svg>
+                                                            </button>
+                                                        <?php endif; ?>
 
-                                                        <!-- Grade Modal -->
-                                                        <div class="modal fade" id="gradeModal<?= $submission['id'] ?>" tabindex="-1" aria-hidden="true">
-                                                            <div class="modal-dialog">
+                                                        <!-- Combined Grade Modal -->
+                                                        <div class="modal" id="gradeModal<?= $submission['id'] ?>" tabindex="-1" role="dialog">
+                                                            <div class="modal-dialog" role="document">
                                                                 <div class="modal-content">
                                                                     <div class="modal-header">
-                                                                        <h5 class="modal-title">Nilai Pengumpulan - <?= esc($submission['student_name']) ?></h5>
+                                                                        <h5 class="modal-title"><?= $submission['status'] === 'graded' ? 'Edit' : 'Beri' ?> Nilai - <?= esc($submission['student_name']) ?></h5>
                                                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                                     </div>
-                                                                    <form action="<?= base_url("class/{$classId}/assignments/submission/{$submission['id']}/grade") ?>" method="post">
+                                                                    <form action="<?= base_url("class/{$classId}/assignments/submission/{$submission['id']}/grade") ?>" method="post" id="gradeForm<?= $submission['id'] ?>">
                                                                         <div class="modal-body">
-                                                                            <div class="mb-3">
-                                                                                <label for="submissionNotes<?= $submission['id'] ?>" class="form-label">Catatan Siswa</label>
-                                                                                <div class="p-2 bg-gray-50 dark:bg-gray-700 rounded-md">
-                                                                                    <?= nl2br(esc($submission['notes'] ?? 'Tidak ada catatan')) ?>
+                                                                            <!-- Submission Info -->
+                                                                            <div class="mb-4">
+                                                                                <h6 class="text-sm font-medium text-gray-700 dark:text-gray-400">Detail Pengumpulan</h6>
+                                                                                <div class="mt-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
+                                                                                    <div class="mb-2">
+                                                                                        <span class="text-sm font-medium">Status:</span>
+                                                                                        <span class="ml-2 px-2 py-1 text-xs font-semibold leading-tight rounded-full <?= getStatusBadgeClass($submission['status']) ?>">
+                                                                                            <?= ucfirst($submission['status']) ?>
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <?php if (!empty($submission['submitted_at'])): ?>
+                                                                                        <div class="mb-2">
+                                                                                            <span class="text-sm font-medium">Dikumpulkan pada:</span>
+                                                                                            <span class="ml-2 text-sm"><?= formatDateTime($submission['submitted_at']) ?></span>
+                                                                                        </div>
+                                                                                    <?php endif; ?>
+                                                                                    <div class="mt-3">
+                                                                                        <span class="text-sm font-medium">Catatan Siswa:</span>
+                                                                                        <div class="mt-1 p-2 bg-white dark:bg-gray-600 rounded-md text-sm">
+                                                                                            <?= nl2br(esc($submission['notes'] ?? 'Tidak ada catatan')) ?>
+                                                                                        </div>
+                                                                                    </div>
                                                                                 </div>
                                                                             </div>
 
-                                                                            <div class="mb-3">
-                                                                                <label for="grade<?= $submission['id'] ?>" class="form-label">Nilai (0-100)</label>
-                                                                                <input type="number" class="form-control" id="grade<?= $submission['id'] ?>"
-                                                                                    name="grade" min="0" max="100" required
+                                                                            <!-- Grade Input -->
+                                                                            <div class="mb-4">
+                                                                                <label for="grade<?= $submission['id'] ?>" class="block text-sm font-medium text-gray-700 dark:text-gray-400">
+                                                                                    Nilai (0-100)
+                                                                                </label>
+                                                                                <input type="number"
+                                                                                    class="block w-full mt-1 text-sm dark:text-gray-300 dark:border-gray-600 dark:bg-gray-700 form-input focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:focus:shadow-outline-gray"
+                                                                                    id="grade<?= $submission['id'] ?>"
+                                                                                    name="grade"
+                                                                                    min="0"
+                                                                                    max="100"
+                                                                                    required
                                                                                     value="<?= $submission['grade'] ?? '' ?>">
                                                                             </div>
 
-                                                                            <div class="mb-3">
-                                                                                <label for="feedback<?= $submission['id'] ?>" class="form-label">Umpan Balik</label>
-                                                                                <textarea class="form-control" id="feedback<?= $submission['id'] ?>"
-                                                                                    name="feedback" rows="4" required><?= $submission['feedback'] ?? '' ?></textarea>
+                                                                            <!-- Feedback Input -->
+                                                                            <div class="mb-4">
+                                                                                <label for="feedback<?= $submission['id'] ?>" class="block text-sm font-medium text-gray-700 dark:text-gray-400">
+                                                                                    Umpan Balik
+                                                                                </label>
+                                                                                <textarea
+                                                                                    class="block w-full mt-1 text-sm dark:text-gray-300 dark:border-gray-600 dark:bg-gray-700 form-textarea focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:focus:shadow-outline-gray"
+                                                                                    id="feedback<?= $submission['id'] ?>"
+                                                                                    name="feedback"
+                                                                                    rows="4"
+                                                                                    required><?= $submission['feedback'] ?? '' ?></textarea>
                                                                             </div>
+
+                                                                            <?php if ($submission['status'] === 'graded'): ?>
+                                                                                <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900 rounded-md">
+                                                                                    <div class="text-sm text-blue-700 dark:text-blue-200">
+                                                                                        <p class="font-medium mb-1">Info Penilaian Sebelumnya:</p>
+                                                                                        <p>Dinilai pada: <?= formatDateTime($submission['graded_at']) ?></p>
+                                                                                    </div>
+                                                                                </div>
+                                                                            <?php endif; ?>
                                                                         </div>
                                                                         <div class="modal-footer">
-                                                                            <button type="button" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 focus:outline-none focus:shadow-outline-gray" data-bs-dismiss="modal">Tutup</button>
-                                                                            <button type="submit" class="px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-purple-600 border border-transparent rounded-lg active:bg-purple-600 hover:bg-purple-700 focus:outline-none focus:shadow-outline-purple">Simpan Nilai</button>
+                                                                            <button type="button"
+                                                                                class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 focus:outline-none focus:shadow-outline-gray"
+                                                                                onclick="closeGradeModal(<?= $submission['id'] ?>)">
+                                                                                Tutup
+                                                                            </button>
+                                                                            <button type="submit"
+                                                                                class="px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-purple-600 border border-transparent rounded-lg active:bg-purple-600 hover:bg-purple-700 focus:outline-none focus:shadow-outline-purple">
+                                                                                <?= $submission['status'] === 'graded' ? 'Perbarui' : 'Simpan' ?> Nilai
+                                                                            </button>
                                                                         </div>
                                                                     </form>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    <?php elseif ($submission['status'] === 'graded'): ?>
-                                                        <button type="button"
-                                                            class="flex items-center justify-between px-2 py-2 text-sm font-medium leading-5 text-blue-600 rounded-lg dark:text-gray-400 focus:outline-none focus:shadow-outline-gray"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#viewGradeModal<?= $submission['id'] ?>" title="Lihat detail nilai">
-                                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                                            </svg>
-                                                        </button>
-
-                                                        <!-- View Grade Modal -->
-                                                        <div class="modal fade" id="viewGradeModal<?= $submission['id'] ?>" tabindex="-1" aria-hidden="true">
-                                                            <div class="modal-dialog">
-                                                                <div class="modal-content">
-                                                                    <div class="modal-header">
-                                                                        <h5 class="modal-title">Detail Nilai - <?= esc($submission['student_name']) ?></h5>
-                                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                                    </div>
-                                                                    <div class="modal-body">
-                                                                        <div class="mb-3">
-                                                                            <label class="form-label">Siswa</label>
-                                                                            <p class="font-semibold"><?= esc($submission['student_name']) ?></p>
-                                                                        </div>
-                                                                        <div class="mb-3">
-                                                                            <label class="form-label">Nilai</label>
-                                                                            <p class="font-semibold"><?= $submission['grade'] ?>/100</p>
-                                                                        </div>
-                                                                        <div class="mb-3">
-                                                                            <label class="form-label">Umpan Balik</label>
-                                                                            <div class="p-2 bg-gray-50 dark:bg-gray-700 rounded-md">
-                                                                                <?= nl2br(esc($submission['feedback'] ?? 'Tidak ada umpan balik')) ?>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div class="mb-3">
-                                                                            <label class="form-label">Dinilai Pada</label>
-                                                                            <p><?= formatDateTime($submission['graded_at']) ?></p>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div class="modal-footer">
-                                                                        <button type="button" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 focus:outline-none focus:shadow-outline-gray" data-bs-dismiss="modal">Tutup</button>
-                                                                        <button type="button"
-                                                                            class="px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-purple-600 border border-transparent rounded-lg active:bg-purple-600 hover:bg-purple-700 focus:outline-none focus:shadow-outline-purple"
-                                                                            data-bs-toggle="modal"
-                                                                            data-bs-target="#gradeModal<?= $submission['id'] ?>"
-                                                                            data-bs-dismiss="modal">
-                                                                            Edit Nilai
-                                                                        </button>
-                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>

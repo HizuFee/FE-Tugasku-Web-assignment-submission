@@ -107,11 +107,21 @@ class AssignmentController extends Controller
         }
 
         // Get selected students
-        $selectedStudents = $this->request->getPost('selected_students');
+        $selectedStudents = $this->request->getPost('selected_students[]');
+        if (empty($selectedStudents)) {
+            $selectedStudents = $this->request->getPost('selected_students');
+        }
         log_message('debug', 'Selected students (raw): ' . print_r($selectedStudents, true));
 
+        // Get selected topics
+        $selectedTopics = $this->request->getPost('selected_topics[]');
+        if (empty($selectedTopics)) {
+            $selectedTopics = $this->request->getPost('selected_topics');
+        }
+        log_message('debug', 'Selected topics (raw): ' . print_r($selectedTopics, true));
+
         // Ensure selected_students is an array and not empty
-        if (empty($selectedStudents) || (!is_array($selectedStudents) && !is_string($selectedStudents))) {
+        if (empty($selectedStudents)) {
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Please select at least one student');
@@ -119,7 +129,11 @@ class AssignmentController extends Controller
 
         // Convert to array if string
         if (!is_array($selectedStudents)) {
-            $selectedStudents = [$selectedStudents];
+            if (strpos($selectedStudents, ',') !== false) {
+                $selectedStudents = explode(',', $selectedStudents);
+            } else {
+                $selectedStudents = [$selectedStudents];
+            }
         }
 
         // Remove any empty values
@@ -133,15 +147,29 @@ class AssignmentController extends Controller
                 ->with('error', 'Please select at least one student');
         }
 
-        // Debug: Log processed selected students
-        log_message('debug', 'Selected students (processed): ' . print_r($selectedStudents, true));
+        // Process selected topics
+        if (!empty($selectedTopics)) {
+            if (!is_array($selectedTopics)) {
+                if (strpos($selectedTopics, ',') !== false) {
+                    $selectedTopics = explode(',', $selectedTopics);
+                } else {
+                    $selectedTopics = [$selectedTopics];
+                }
+            }
+            $selectedTopics = array_filter($selectedTopics, function ($value) {
+                return !empty(trim($value));
+            });
+        } else {
+            $selectedTopics = [];
+        }
 
         $data = [
             'class_id' => $classId,
             'title' => $this->request->getPost('title'),
             'description' => $this->request->getPost('description'),
             'deadline' => $this->request->getPost('deadline'),
-            'selected_students' => $selectedStudents
+            'selected_students' => $selectedStudents,
+            'selected_topics' => $selectedTopics
         ];
 
         // Debug: Log final data
@@ -171,8 +199,21 @@ class AssignmentController extends Controller
             ];
 
             // Add selected students to postData
-            foreach ($selectedStudents as $studentId) {
-                $postData['selected_students[]'] = $studentId;
+            if (is_array($selectedStudents)) {
+                foreach ($selectedStudents as $index => $studentId) {
+                    $postData['selected_students[' . $index . ']'] = $studentId;
+                }
+            } else {
+                $postData['selected_students[]'] = $selectedStudents;
+            }
+
+            // Add selected topics to postData
+            if (is_array($selectedTopics)) {
+                foreach ($selectedTopics as $index => $topicId) {
+                    $postData['selected_topics[' . $index . ']'] = $topicId;
+                }
+            } else if (!empty($selectedTopics)) {
+                $postData['selected_topics[]'] = $selectedTopics;
             }
 
             // Debug: Log curl data
@@ -216,10 +257,32 @@ class AssignmentController extends Controller
                 'x-auth-token' => session()->get('auth_token')
             ];
 
-            // Debug: Log API request without file
-            log_message('debug', 'API request data (no file): ' . print_r($data, true));
+            // Prepare data for API request
+            $postData = [
+                'class_id' => $data['class_id'],
+                'title' => $data['title'],
+                'description' => $data['description'],
+                'deadline' => $data['deadline']
+            ];
 
-            $response = api_request($apiUrl, 'POST', $data, $headers);
+            // Add selected students to postData
+            if (is_array($selectedStudents)) {
+                $postData['selected_students'] = $selectedStudents;
+            } else {
+                $postData['selected_students'] = [$selectedStudents];
+            }
+
+            // Add selected topics to postData
+            if (is_array($selectedTopics)) {
+                $postData['selected_topics'] = $selectedTopics;
+            } else if (!empty($selectedTopics)) {
+                $postData['selected_topics'] = [$selectedTopics];
+            }
+
+            // Debug: Log API request without file
+            log_message('debug', 'API request data (no file): ' . print_r($postData, true));
+
+            $response = api_request($apiUrl, 'POST', $postData, $headers);
 
             // Debug: Log API response
             log_message('debug', 'API Response (no file): ' . print_r($response, true));
@@ -306,8 +369,24 @@ class AssignmentController extends Controller
                 ->with('error', $classResponse['message'] ?? 'Failed to fetch class details');
         }
 
+        // Get topics for this assignment
+        $topicsApiUrl = "http://localhost:3000/api/assignment/{$assignmentId}/topics";
+        $topicsResponse = api_request($topicsApiUrl, 'GET', [], $headers);
+
+        // Prepare selected topics array
+        $selectedTopics = [];
+        if ($topicsResponse && isset($topicsResponse['topics'])) {
+            $selectedTopics = array_map(function ($topic) {
+                return $topic['id'];
+            }, $topicsResponse['topics']);
+        }
+
+        // Add selected topics to assignment data
+        $assignment = $response['assignment'];
+        $assignment['selected_topics'] = $selectedTopics;
+
         return view('assignment/edit', [
-            'assignment' => $response['assignment'] ?? [],
+            'assignment' => $assignment,
             'students' => $classResponse['students'] ?? [],
             'classId' => $classId
         ]);
@@ -330,57 +409,53 @@ class AssignmentController extends Controller
             'selected_students' => 'required'
         ];
 
-        // Check if file exists and is valid
-        if (!$this->request->getFile('file')->isValid()) {
-            unset($rules['file']);
-        }
-
         if (!$this->validate($rules)) {
-            log_message('debug', 'Validation errors: ' . print_r($validation->getErrors(), true));
             return redirect()->back()
                 ->withInput()
                 ->with('error', implode('<br>', $validation->getErrors()));
         }
 
         // Get selected students
-        $selectedStudents = $this->request->getPost('selected_students');
-        log_message('debug', 'Selected students (raw): ' . print_r($selectedStudents, true));
-
-        // Ensure selected_students is an array and not empty
-        if (empty($selectedStudents)) {
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Please select at least one student');
+        $selectedStudents = [];
+        if (is_array($this->request->getPost('selected_students[]'))) {
+            $selectedStudents = $this->request->getPost('selected_students[]');
+        } else {
+            $selectedStudentsStr = $this->request->getPost('selected_students');
+            if ($selectedStudentsStr) {
+                $selectedStudents = explode(',', $selectedStudentsStr);
+            }
         }
 
-        // Convert comma-separated string to array
-        if (is_string($selectedStudents)) {
-            $selectedStudents = explode(',', $selectedStudents);
+        // Get selected topics
+        $selectedTopics = [];
+        if (is_array($this->request->getPost('selected_topics[]'))) {
+            $selectedTopics = $this->request->getPost('selected_topics[]');
+        } else {
+            $selectedTopicsStr = $this->request->getPost('selected_topics');
+            if ($selectedTopicsStr) {
+                $selectedTopics = explode(',', $selectedTopicsStr);
+            }
         }
 
         // Remove any empty values
-        $selectedStudents = array_filter($selectedStudents, function ($value) {
-            return !empty(trim($value));
-        });
+        $selectedStudents = array_filter($selectedStudents, 'strlen');
+        $selectedTopics = array_filter($selectedTopics, 'strlen');
 
-        if (empty($selectedStudents)) {
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Please select at least one student');
-        }
+        // Debug log
+        log_message('debug', 'Selected students: ' . print_r($selectedStudents, true));
+        log_message('debug', 'Selected topics: ' . print_r($selectedTopics, true));
 
         $data = [
             'title' => $this->request->getPost('title'),
             'description' => $this->request->getPost('description'),
             'deadline' => $this->request->getPost('deadline'),
-            'selected_students' => $selectedStudents
+            'selected_students' => $selectedStudents,
+            'selected_topics' => $selectedTopics
         ];
 
         // Handle file upload
         $file = $this->request->getFile('file');
-
         if ($file && $file->isValid() && !$file->hasMoved()) {
-            // Use cURL to handle file upload to API
             $apiUrl = "http://localhost:3000/api/assignment/{$assignmentId}";
             $headers = [
                 'x-auth-token' => session()->get('auth_token')
@@ -403,8 +478,10 @@ class AssignmentController extends Controller
                 $postData['selected_students[]'] = $studentId;
             }
 
-            // Debug: Log curl data
-            log_message('debug', 'CURL post data: ' . print_r($postData, true));
+            // Add selected topics to postData
+            foreach ($selectedTopics as $topicId) {
+                $postData['selected_topics[]'] = $topicId;
+            }
 
             curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "PUT");
             curl_setopt($curl, CURLOPT_POSTFIELDS, $postData);
@@ -416,26 +493,16 @@ class AssignmentController extends Controller
             $response = curl_exec($curl);
             $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
 
-            if (curl_errno($curl)) {
-                log_message('error', 'Curl error: ' . curl_error($curl));
-            }
-
-            // Debug: Log response
-            log_message('debug', 'API Response: ' . print_r($response, true));
-            log_message('debug', 'HTTP Code: ' . $httpCode);
-
             curl_close($curl);
 
             if ($httpCode === 200) {
-                $response = json_decode($response, true);
                 return redirect()->to("/class/{$classId}/assignments/{$assignmentId}")
                     ->with('success', 'Assignment updated successfully');
             } else {
                 $responseData = json_decode($response, true);
-                $errorMessage = $responseData['message'] ?? 'Failed to update assignment. Please try again.';
                 return redirect()->back()
                     ->withInput()
-                    ->with('error', $errorMessage);
+                    ->with('error', $responseData['message'] ?? 'Failed to update assignment');
             }
         } else {
             // No file uploaded, use regular API request
@@ -444,22 +511,15 @@ class AssignmentController extends Controller
                 'x-auth-token' => session()->get('auth_token')
             ];
 
-            // Debug: Log API request without file
-            log_message('debug', 'API request data (no file): ' . print_r($data, true));
-
             $response = api_request($apiUrl, 'PUT', $data, $headers);
-
-            // Debug: Log API response
-            log_message('debug', 'API Response (no file): ' . print_r($response, true));
 
             if ($response && !isset($response['error'])) {
                 return redirect()->to("/class/{$classId}/assignments/{$assignmentId}")
                     ->with('success', 'Assignment updated successfully');
             } else {
-                $errorMessage = $response['message'] ?? 'Failed to update assignment. Please try again.';
                 return redirect()->back()
                     ->withInput()
-                    ->with('error', $errorMessage);
+                    ->with('error', $response['message'] ?? 'Failed to update assignment');
             }
         }
     }

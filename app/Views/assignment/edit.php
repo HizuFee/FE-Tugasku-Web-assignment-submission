@@ -1,7 +1,7 @@
 <!-- app/Views/assignment/edit.php -->
 <?= $this->extend('layout/default') ?>
 
-<?= $this->section('title') ?>Edit Assignment - <?= $assignment['title'] ?? 'Assignment' ?><?= $this->endSection() ?>
+<?= $this->section('title') ?>Edit Tugas<?= $this->endSection() ?>
 
 <?= $this->section('content') ?>
 <div class="container px-6 mx-auto grid">
@@ -9,9 +9,9 @@
         <h2 class="my-6 text-2xl font-semibold text-gray-700 dark:text-gray-200">
             Edit Tugas
         </h2>
-        <a href="<?= base_url("class/{$classId}/assignments/{$assignment['id']}") ?>"
+        <a href="<?= base_url("class/{$classId}/assignments") ?>"
             class="px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-purple-600 border border-transparent rounded-lg active:bg-purple-600 hover:bg-purple-700 focus:outline-none focus:shadow-outline-purple">
-            <i class="fas fa-arrow-left mr-2"></i> Kembali ke Detail Tugas
+            <i class="fas fa-arrow-left mr-2"></i> Kembali ke Daftar Tugas
         </a>
     </div>
 
@@ -19,8 +19,9 @@
 
     <div class="px-4 py-3 mb-8 bg-white rounded-lg shadow-md dark:bg-gray-800">
         <form action="<?= base_url("class/{$classId}/assignments/{$assignment['id']}/update") ?>" method="post" enctype="multipart/form-data" id="editAssignmentForm" onsubmit="return validateForm()">
-            <!-- Hidden input for storing selected students -->
+            <!-- Hidden inputs -->
             <input type="hidden" name="selected_students" id="selected_students_input">
+            <input type="hidden" name="selected_topics" id="selected_topics_input">
 
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-400" for="title">
@@ -65,8 +66,14 @@
                     File Lampiran (Opsional)
                 </label>
                 <?php if (!empty($assignment['file_path'])): ?>
-                    <div class="mb-2">
-                        <p class="text-sm text-gray-600 dark:text-gray-400">File saat ini: <?= basename($assignment['file_path']) ?></p>
+                    <div class="mt-2 mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
+                        <p class="text-sm text-gray-600 dark:text-gray-400">File saat ini:</p>
+                        <div class="flex items-center mt-2">
+                            <svg class="w-5 h-5 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                            </svg>
+                            <span class="text-sm text-gray-600 dark:text-gray-400"><?= basename($assignment['file_path']) ?></span>
+                        </div>
                     </div>
                 <?php endif; ?>
                 <input
@@ -75,6 +82,32 @@
                     id="file"
                     name="file" />
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Format yang didukung: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, TXT, JPG, PNG, ZIP, RAR, dll (Max: 10MB)</p>
+            </div>
+
+            <!-- Topic Management Section -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-2">
+                    Topik
+                </label>
+                <div class="flex flex-wrap gap-2 mb-2" id="selectedTopics">
+                    <!-- Selected topics will be displayed here -->
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="newTopicName" placeholder="Nama topik baru"
+                        class="flex-1 text-sm dark:border-gray-600 dark:bg-gray-700 focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:text-gray-300 dark:focus:shadow-outline-gray form-input">
+                    <input type="text" id="newTopicDesc" placeholder="Deskripsi (opsional)"
+                        class="flex-1 text-sm dark:border-gray-600 dark:bg-gray-700 focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:text-gray-300 dark:focus:shadow-outline-gray form-input">
+                    <button type="button" onclick="createTopic()"
+                        class="px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-purple-600 border border-transparent rounded-lg active:bg-purple-600 hover:bg-purple-700 focus:outline-none focus:shadow-outline-purple">
+                        Tambah Topik
+                    </button>
+                </div>
+                <div class="mt-4">
+                    <h4 class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Topik yang Tersedia:</h4>
+                    <div class="flex flex-wrap gap-2" id="availableTopics">
+                        <!-- Available topics will be loaded here -->
+                    </div>
+                </div>
             </div>
 
             <div class="mb-4">
@@ -112,8 +145,8 @@
                                                     value="<?= $student['id'] ?>"
                                                     class="student-checkbox"
                                                     id="student_<?= $student['id'] ?>"
-                                                    onclick="updateSelectedStudents()"
-                                                    <?= in_array($student['id'], array_column($assignment['selected_students'] ?? [], 'id')) ? 'checked' : '' ?>>
+                                                    <?= in_array($student['id'], $assignment['selected_students'] ?? []) ? 'checked' : '' ?>
+                                                    onclick="updateSelectedStudents()">
                                             </td>
                                             <td class="px-4 py-3">
                                                 <label for="student_<?= $student['id'] ?>" class="flex items-center text-sm cursor-pointer">
@@ -154,6 +187,129 @@
 </div>
 
 <script>
+    let selectedTopicIds = new Set(<?= json_encode($assignment['selected_topics'] ?? []) ?>);
+    let availableTopics = [];
+
+    // Load topics when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        loadTopics();
+        updateSelectedStudents();
+        console.log('Initial selected topics:', Array.from(selectedTopicIds));
+    });
+
+    async function loadTopics() {
+        try {
+            console.log('Loading topics for class:', <?= $classId ?>);
+            const response = await fetch(`<?= base_url("class/{$classId}/topics") ?>`);
+            const data = await response.json();
+            console.log('Topics response:', data);
+
+            if (data.topics) {
+                availableTopics = data.topics;
+                renderTopics();
+            } else {
+                console.error('No topics data in response:', data);
+                availableTopics = [];
+                renderTopics();
+            }
+        } catch (error) {
+            console.error('Error loading topics:', error);
+            availableTopics = [];
+            renderTopics();
+        }
+    }
+
+    function renderTopics() {
+        const availableTopicsDiv = document.getElementById('availableTopics');
+        const selectedTopicsDiv = document.getElementById('selectedTopics');
+
+        availableTopicsDiv.innerHTML = '';
+        selectedTopicsDiv.innerHTML = '';
+
+        availableTopics.forEach(topic => {
+            if (selectedTopicIds.has(parseInt(topic.id))) {
+                selectedTopicsDiv.innerHTML += `
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        ${escapeHtml(topic.name)}
+                        <button type="button" onclick="toggleTopic(${topic.id})" class="ml-1 text-purple-600 hover:text-purple-900">
+                            ×
+                        </button>
+                    </span>
+                `;
+            } else {
+                availableTopicsDiv.innerHTML += `
+                    <button type="button" 
+                        onclick="toggleTopic(${topic.id})"
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-purple-100 hover:text-purple-800">
+                        ${escapeHtml(topic.name)}
+                    </button>
+                `;
+            }
+        });
+
+        // Update hidden input
+        document.getElementById('selected_topics_input').value = Array.from(selectedTopicIds).join(',');
+        console.log('Updated selected topics:', Array.from(selectedTopicIds));
+    }
+
+    function toggleTopic(topicId) {
+        topicId = parseInt(topicId);
+        if (selectedTopicIds.has(topicId)) {
+            selectedTopicIds.delete(topicId);
+        } else {
+            selectedTopicIds.add(topicId);
+        }
+        renderTopics();
+    }
+
+    async function createTopic() {
+        const name = document.getElementById('newTopicName').value.trim();
+        const description = document.getElementById('newTopicDesc').value.trim();
+
+        if (!name) {
+            alert('Nama topik harus diisi');
+            return;
+        }
+
+        try {
+            const response = await fetch(`<?= base_url("class/{$classId}/topics") ?>`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    name: name,
+                    description: description,
+                    class_id: <?= $classId ?>
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.topic) {
+                availableTopics.push(data.topic);
+                selectedTopicIds.add(data.topic.id);
+                document.getElementById('newTopicName').value = '';
+                document.getElementById('newTopicDesc').value = '';
+                renderTopics();
+            } else {
+                alert(data.message || 'Gagal membuat topik');
+            }
+        } catch (error) {
+            console.error('Error creating topic:', error);
+            alert('Terjadi kesalahan saat membuat topik');
+        }
+    }
+
+    function escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
     function toggleAllStudents(checkbox) {
         const studentCheckboxes = document.querySelectorAll('.student-checkbox');
         studentCheckboxes.forEach(box => {
@@ -175,6 +331,9 @@
 
         selectAllCheckbox.checked = allChecked;
         selectAllCheckbox.indeterminate = someChecked && !allChecked;
+
+        // Debug log
+        console.log('Selected students:', selectedStudents);
     }
 
     function validateForm() {
@@ -183,12 +342,47 @@
             alert('Silakan pilih minimal satu siswa untuk tugas ini.');
             return false;
         }
+
+        // Get form data
+        const form = document.getElementById('editAssignmentForm');
+
+        // Remove all existing hidden inputs for students and topics
+        form.querySelectorAll('input[name^="selected_students"], input[name^="selected_topics"]').forEach(input => input.remove());
+
+        // Convert selected students to array format
+        const selectedStudentsArray = selectedStudents.split(',').filter(id => id.trim());
+        console.log('Selected students array:', selectedStudentsArray);
+
+        // Add student inputs
+        selectedStudentsArray.forEach(studentId => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'selected_students[]';
+            input.value = studentId.trim();
+            form.appendChild(input);
+        });
+
+        // Add selected topics
+        const selectedTopics = Array.from(selectedTopicIds);
+        console.log('Selected topics before submit:', selectedTopics);
+        if (selectedTopics.length > 0) {
+            selectedTopics.forEach(topicId => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'selected_topics[]';
+                input.value = topicId.toString();
+                form.appendChild(input);
+            });
+        }
+
+        // Debug log
+        console.log('Form data before submission:');
+        const formData = new FormData(form);
+        for (let [key, value] of formData.entries()) {
+            console.log(`${key}: ${value}`);
+        }
+
         return true;
     }
-
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        updateSelectedStudents();
-    });
 </script>
 <?= $this->endSection() ?>

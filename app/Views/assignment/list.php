@@ -28,14 +28,55 @@
 
     <?= $this->include('partials/alerts') ?>
 
+    <!-- Filter Section -->
+    <div class="mb-6 p-4 bg-white rounded-lg shadow-xs dark:bg-gray-800">
+        <h4 class="mb-4 font-semibold text-gray-600 dark:text-gray-300">
+            Filter Tugas
+        </h4>
+        <div class="flex flex-wrap gap-4">
+            <div class="flex-1">
+                <label class="block text-sm text-gray-700 dark:text-gray-400 mb-2">
+                    Cari Tugas
+                </label>
+                <input type="text" id="searchInput" placeholder="Cari judul tugas..."
+                    class="block w-full mt-1 text-sm dark:border-gray-600 dark:bg-gray-700 focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:text-gray-300 dark:focus:shadow-outline-gray form-input">
+            </div>
+            <div class="flex-1">
+                <label class="block text-sm text-gray-700 dark:text-gray-400 mb-2">
+                    Filter Topik
+                </label>
+                <select id="topicFilter" class="block w-full mt-1 text-sm dark:text-gray-300 dark:border-gray-600 dark:bg-gray-700 form-select focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:focus:shadow-outline-gray">
+                    <option value="">Semua Topik</option>
+                </select>
+            </div>
+            <div class="flex-1">
+                <label class="block text-sm text-gray-700 dark:text-gray-400 mb-2">
+                    Status
+                </label>
+                <select id="statusFilter" class="block w-full mt-1 text-sm dark:text-gray-300 dark:border-gray-600 dark:bg-gray-700 form-select focus:border-purple-400 focus:outline-none focus:shadow-outline-purple dark:focus:shadow-outline-gray">
+                    <option value="">Semua Status</option>
+                    <option value="pending">Belum Dikumpulkan</option>
+                    <option value="submitted">Sudah Dikumpulkan</option>
+                    <option value="late">Terlambat</option>
+                    <option value="graded">Sudah Dinilai</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
     <?php if (empty($assignments)): ?>
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xs p-4 text-center">
             <p class="text-gray-600 dark:text-gray-400">Belum ada tugas di kelas ini.</p>
         </div>
     <?php else: ?>
-        <div class="grid gap-6 mb-8 md:grid-cols-2 xl:grid-cols-3">
+        <div class="grid gap-6 mb-8 md:grid-cols-2 xl:grid-cols-3" id="assignmentList">
             <?php foreach ($assignments as $assignment): ?>
-                <div class="min-w-0 p-4 bg-white rounded-lg shadow-xs dark:bg-gray-800">
+                <div class="assignment-card min-w-0 p-4 bg-white rounded-lg shadow-xs dark:bg-gray-800"
+                    data-title="<?= strtolower($assignment['title']) ?>"
+                    data-topics='<?= json_encode(array_map(function ($topic) {
+                                        return $topic['name'];
+                                    }, $assignment['topics'] ?? [])) ?>'
+                    data-status="<?= $assignment['submission']['status'] ?? '' ?>">
                     <div class="flex items-center justify-between mb-4">
                         <div class="flex items-center">
                             <div class="p-3 mr-4 text-purple-500 bg-purple-100 rounded-full dark:text-purple-100 dark:bg-purple-500">
@@ -55,6 +96,19 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Topics -->
+                    <?php if (!empty($assignment['topics'])): ?>
+                        <div class="mb-4">
+                            <div class="flex flex-wrap gap-2">
+                                <?php foreach ($assignment['topics'] as $topic): ?>
+                                    <span class="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                                        <?= esc($topic['name']) ?>
+                                    </span>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
 
                     <div class="text-sm text-gray-600 dark:text-gray-400 mb-4">
                         <?= nl2br(esc(substr($assignment['description'], 0, 100) . (strlen($assignment['description']) > 100 ? '...' : ''))) ?>
@@ -111,21 +165,64 @@
     <?php endif; ?>
 </div>
 
-<?php
-// Helper function for submission status badges
-function getStatusBadgeClass($status)
-{
-    switch ($status) {
-        case 'submitted':
-            return 'text-green-700 bg-green-100 dark:bg-green-700 dark:text-green-100';
-        case 'late':
-            return 'text-yellow-700 bg-yellow-100 dark:bg-yellow-700 dark:text-yellow-100';
-        case 'graded':
-            return 'text-blue-700 bg-blue-100 dark:bg-blue-700 dark:text-blue-100';
-        case 'pending':
-        default:
-            return 'text-gray-700 bg-gray-100 dark:bg-gray-700 dark:text-gray-100';
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Collect all unique topics
+        const topics = new Set();
+        document.querySelectorAll('.assignment-card').forEach(card => {
+            const cardTopics = JSON.parse(card.dataset.topics || '[]');
+            cardTopics.forEach(topic => topics.add(topic));
+        });
+
+        // Populate topic filter
+        const topicFilter = document.getElementById('topicFilter');
+        topics.forEach(topic => {
+            const option = document.createElement('option');
+            option.value = topic;
+            option.textContent = topic;
+            topicFilter.appendChild(option);
+        });
+
+        function filterAssignments() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const selectedTopic = document.getElementById('topicFilter').value.toLowerCase();
+            const selectedStatus = document.getElementById('statusFilter').value.toLowerCase();
+
+            document.querySelectorAll('.assignment-card').forEach(card => {
+                const title = card.dataset.title;
+                const cardTopics = JSON.parse(card.dataset.topics || '[]').map(t => t.toLowerCase());
+                const status = card.dataset.status.toLowerCase();
+
+                const matchesSearch = title.includes(searchTerm);
+                const matchesTopic = !selectedTopic || cardTopics.includes(selectedTopic);
+                const matchesStatus = !selectedStatus || status === selectedStatus;
+
+                card.style.display = matchesSearch && matchesTopic && matchesStatus ? 'block' : 'none';
+            });
+        }
+
+        // Add event listeners
+        document.getElementById('searchInput').addEventListener('input', filterAssignments);
+        document.getElementById('topicFilter').addEventListener('change', filterAssignments);
+        document.getElementById('statusFilter').addEventListener('change', filterAssignments);
+    });
+
+    <?php
+    // Helper function for submission status badges
+    function getStatusBadgeClass($status)
+    {
+        switch ($status) {
+            case 'submitted':
+                return 'text-green-700 bg-green-100 dark:bg-green-700 dark:text-green-100';
+            case 'late':
+                return 'text-yellow-700 bg-yellow-100 dark:bg-yellow-700 dark:text-yellow-100';
+            case 'graded':
+                return 'text-blue-700 bg-blue-100 dark:bg-blue-700 dark:text-blue-100';
+            case 'pending':
+            default:
+                return 'text-gray-700 bg-gray-100 dark:bg-gray-700 dark:text-gray-100';
+        }
     }
-}
-?>
+    ?>
+</script>
 <?= $this->endSection() ?>
