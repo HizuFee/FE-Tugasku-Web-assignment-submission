@@ -174,12 +174,12 @@
                         </svg>
                         <strong>Dibuat oleh:</strong> <?= esc($assignment['creator_name'] ?? 'Guru') ?>
                     </div>
-                    <div class="text-gray-600 dark:text-gray-400 <?= strtotime($assignment['deadline'] ?? 'now') < time() ? 'text-red-600 dark:text-red-400' : '' ?>">
+                    <div class="text-gray-600 dark:text-gray-400 <?= strtotime($assignment['deadline'] . ' +7 hours') < time() ? 'text-red-600 dark:text-red-400' : '' ?>">
                         <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        <strong>Tenggat waktu:</strong> <?= date('d M Y, H:i', strtotime($assignment['deadline'] ?? 'now')) ?>
-                        <?= strtotime($assignment['deadline'] ?? 'now') < time() ? '<span class="px-2 py-1 text-xs font-semibold leading-tight text-red-700 bg-red-100 rounded-full dark:bg-red-700 dark:text-red-100 ml-2">Lewat</span>' : '' ?>
+                        <strong>Tenggat waktu:</strong> <?= date('d M Y, H:i', strtotime($assignment['deadline'] . ' +7 hours')) ?>
+                        <?= strtotime($assignment['deadline'] . ' +7 hours') < time() ? '<span class="px-2 py-1 text-xs font-semibold leading-tight text-red-700 bg-red-100 rounded-full dark:bg-red-700 dark:text-red-100 ml-2">Lewat</span>' : '' ?>
                     </div>
                 </div>
 
@@ -386,7 +386,7 @@
                                                                         </div>
                                                                         <div class="mb-3">
                                                                             <label class="form-label">Dinilai Pada</label>
-                                                                            <p><?= date('d M Y, H:i', strtotime($submission['graded_at'])) ?></p>
+                                                                            <p><?= formatDateTime($submission['graded_at']) ?></p>
                                                                         </div>
                                                                     </div>
                                                                     <div class="modal-footer">
@@ -479,6 +479,9 @@
                                         </svg>
                                         Nilai: <span class="ml-2 px-2 py-1 text-xs font-semibold leading-tight rounded-full <?= $userSubmission['grade'] >= 60 ? 'text-green-700 bg-green-100 dark:bg-green-700 dark:text-green-100' : 'text-red-700 bg-red-100 dark:bg-red-700 dark:text-red-100' ?>"><?= $userSubmission['grade'] ?>/100</span>
                                     </h5>
+                                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                                        <strong>Dinilai pada:</strong> <?= formatDateTime($userSubmission['graded_at']) ?>
+                                    </p>
                                     <p class="mt-3 mb-1 text-gray-700 dark:text-gray-300"><strong>Umpan Balik:</strong></p>
                                     <div class="italic text-gray-600 dark:text-gray-400">
                                         <?= nl2br(esc($userSubmission['feedback'] ?? 'Tidak ada umpan balik')) ?>
@@ -486,10 +489,10 @@
                                 </div>
                             <?php endif; ?>
 
-                            <?php if (strtotime($assignment['deadline']) > time() && $userSubmission['status'] !== 'graded'): ?>
+                            <?php if (strtotime($assignment['deadline'] . ' +7 hours') > time() && $userSubmission['status'] !== 'graded'): ?>
                                 <div class="mt-3">
                                     <p class="text-gray-600 dark:text-gray-400">Anda masih dapat memperbarui pengumpulan sebelum tenggat waktu.</p>
-                                    <button class="w-full px-4 py-2 mt-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-purple-600 border border-transparent rounded-lg active:bg-purple-600 hover:bg-purple-700 focus:outline-none focus:shadow-outline-purple" type="button"
+                                    <!-- <button class="w-full px-4 py-2 mt-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-purple-600 border border-transparent rounded-lg active:bg-purple-600 hover:bg-purple-700 focus:outline-none focus:shadow-outline-purple" type="button"
                                         data-bs-toggle="collapse"
                                         data-bs-target="#updateSubmission"
                                         aria-expanded="false">
@@ -497,12 +500,12 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
                                         </svg>
                                         Perbarui Pengumpulan
-                                    </button>
+                                    </button> -->
                                 </div>
                             <?php endif; ?>
                         </div>
 
-                        <?php if (strtotime($assignment['deadline']) > time() && $userSubmission['status'] !== 'graded'): ?>
+                        <?php if (strtotime($assignment['deadline'] . ' +7 hours') > time() && $userSubmission['status'] !== 'graded'): ?>
                             <div class="collapse mt-3" id="updateSubmission">
                                 <div class="p-4 border border-purple-200 rounded-lg dark:border-purple-800">
                                     <h5 class="mb-3 font-semibold text-gray-700 dark:text-gray-300">
@@ -609,7 +612,7 @@
                         <?php endif; ?>
 
                     <?php else: ?>
-                        <?php if (strtotime($assignment['deadline']) < time()): ?>
+                        <?php if (strtotime($assignment['deadline'] . ' +7 hours') < time()): ?>
                             <div class="p-3 mb-4 text-red-700 bg-red-100 rounded-lg dark:bg-red-800 dark:text-red-200">
                                 <svg class="w-5 h-5 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
@@ -1049,6 +1052,10 @@
                 </div>
             `;
 
+            // Tambahkan token ke URL
+            const token = '<?= session()->get('auth_token') ?>';
+            previewUrl += (previewUrl.includes('?') ? '&' : '?') + 'token=' + token;
+
             // Fetch preview data untuk siswa
             fetch(previewUrl)
                 .then(response => {
@@ -1210,6 +1217,10 @@
                 downloadLink.classList.remove('hidden');
             }
         }
+
+        // Tambahkan token ke URL
+        const token = '<?= session()->get('auth_token') ?>';
+        previewUrl += (previewUrl.includes('?') ? '&' : '?') + 'token=' + token;
 
         // Fetch preview data
         fetch(previewUrl)
@@ -1527,6 +1538,13 @@ function getStatusBadgeClass($status)
         default:
             return 'text-gray-700 bg-gray-100 dark:bg-gray-700 dark:text-gray-100';
     }
+}
+
+// Helper function untuk format tanggal dan waktu
+function formatDateTime($datetime)
+{
+    if (empty($datetime)) return '-';
+    return date('d M Y, H:i', strtotime($datetime . ' +7 hours'));
 }
 ?>
 <?= $this->endSection() ?>
