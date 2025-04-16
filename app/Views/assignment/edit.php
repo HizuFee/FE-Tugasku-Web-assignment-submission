@@ -5,25 +5,33 @@
 
 <?= $this->section('content') ?>
 <div class="container px-6 mx-auto grid">
-    <div class="flex justify-between items-center mb-6">
-        <h2 class="my-6 text-2xl font-semibold text-gray-700 dark:text-gray-200">
-            Edit Tugas
-        </h2>
-        <a href="<?= base_url("class/{$classId}/assignments") ?>"
-            class="px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-purple-600 border border-transparent rounded-lg active:bg-purple-600 hover:bg-purple-700 focus:outline-none focus:shadow-outline-purple">
-            <i class="fas fa-arrow-left mr-2"></i> Kembali ke Daftar Tugas
-        </a>
+    <div class="flex justify-between items-center my-6">
+        <div>
+            <a href="<?= base_url("class/{$classId}/assignments") ?>" class="flex items-center text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline mb-2">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Kembali ke Daftar Tugas
+            </a>
+            <h2 class="text-2xl font-semibold text-gray-700 dark:text-gray-200">Edit Tugas</h2>
+        </div>
     </div>
 
     <?= $this->include('partials/alerts') ?>
 
-    <div class="px-4 py-3 mb-8 bg-white rounded-lg shadow-md dark:bg-gray-800">
+    <div class="min-w-0 p-4 bg-white rounded-lg shadow-xs dark:bg-gray-800">
         <form action="<?= base_url("class/{$classId}/assignments/{$assignment['id']}/update") ?>" method="post" enctype="multipart/form-data" id="editAssignmentForm" onsubmit="return validateForm()">
             <!-- Hidden inputs -->
             <input type="hidden" name="selected_students" id="selected_students_input">
             <input type="hidden" name="selected_topics" id="selected_topics_input">
 
             <div class="mb-4">
+                <h4 class="mb-4 font-semibold text-gray-600 dark:text-gray-300">
+                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Detail Tugas
+                </h4>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-400" for="title">
                     Judul Tugas
                 </label>
@@ -86,9 +94,12 @@
 
             <!-- Topic Management Section -->
             <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-2">
+                <h4 class="mb-4 font-semibold text-gray-600 dark:text-gray-300">
+                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                    </svg>
                     Topik
-                </label>
+                </h4>
                 <div class="flex flex-wrap gap-2 mb-2" id="selectedTopics">
                     <!-- Selected topics will be displayed here -->
                 </div>
@@ -111,9 +122,12 @@
             </div>
 
             <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-2">
+                <h4 class="mb-4 font-semibold text-gray-600 dark:text-gray-300">
+                    <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
                     Pilih Siswa
-                </label>
+                </h4>
                 <div class="flex items-center mb-4">
                     <input type="checkbox" id="selectAll" class="mr-2" onchange="toggleAllStudents(this)">
                     <label for="selectAll" class="text-sm text-gray-700 dark:text-gray-400">
@@ -229,9 +243,9 @@
         availableTopics.forEach(topic => {
             if (selectedTopicIds.has(parseInt(topic.id))) {
                 selectedTopicsDiv.innerHTML += `
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-800 text-purple-800 mb-2 mr-2">
                         ${escapeHtml(topic.name)}
-                        <button type="button" onclick="toggleTopic(${topic.id})" class="ml-1 text-purple-600 hover:text-purple-900">
+                        <button type="button" onclick="toggleTopic(${topic.id})" class="ml-2 text-red-600 text-base hover:text-purple-900">
                             ×
                         </button>
                     </span>
@@ -240,7 +254,7 @@
                 availableTopicsDiv.innerHTML += `
                     <button type="button" 
                         onclick="toggleTopic(${topic.id})"
-                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-purple-100 hover:text-purple-800">
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-purple-100 hover:text-purple-800 mb-2 mr-2">
                         ${escapeHtml(topic.name)}
                     </button>
                 `;

@@ -276,7 +276,7 @@
                                                 </span>
                                             </td>
                                             <td class="px-4 py-3 text-sm">
-                                                <?= !empty($submission['submitted_at']) ? date('d M Y, H:i', strtotime($submission['submitted_at'])) : '-' ?>
+                                                <?= !empty($submission['submitted_at']) ? date('d M Y, H:i', strtotime($submission['submitted_at'] . ' +7 hours')) : '-' ?>
                                             </td>
                                             <td class="px-4 py-3 text-sm font-semibold">
                                                 <?= isset($submission['grade']) ? "{$submission['grade']}/100" : '-' ?>
@@ -446,7 +446,7 @@
                             </p>
 
                             <?php if (!empty($userSubmission['submitted_at'])): ?>
-                                <p class="mt-2"><strong>Dikumpulkan pada:</strong> <?= date('d M Y, H:i', strtotime($userSubmission['submitted_at'])) ?></p>
+                                <p class="mt-2"><strong>Dikumpulkan pada:</strong> <?= date('d M Y, H:i', strtotime($userSubmission['submitted_at'] . ' +7 hours')) ?></p>
                             <?php endif; ?>
 
                             <?php if (!empty($userSubmission['file_path'])): ?>

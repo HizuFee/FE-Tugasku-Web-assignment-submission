@@ -78,7 +78,7 @@
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-2">
                     Topik
                 </label>
-                <div class="flex flex-wrap gap-2 mb-2" id="selectedTopics">
+                <div class="flex flex-wrap gap-3 mb-3" id="selectedTopics">
                     <!-- Selected topics will be displayed here -->
                 </div>
                 <div class="flex gap-2">
@@ -93,7 +93,7 @@
                 </div>
                 <div class="mt-4">
                     <h4 class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Topik yang Tersedia:</h4>
-                    <div class="flex flex-wrap gap-2" id="availableTopics">
+                    <div class="flex flex-wrap gap-3" id="availableTopics">
                         <!-- Available topics will be loaded here -->
                     </div>
                 </div>
@@ -216,9 +216,9 @@
         availableTopics.forEach(topic => {
             if (selectedTopicIds.has(topic.id)) {
                 selectedTopicsDiv.innerHTML += `
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-purple-600 text-white mb-2 mr-2">
                         ${escapeHtml(topic.name)}
-                        <button type="button" onclick="toggleTopic(${topic.id})" class="ml-1 text-purple-600 hover:text-purple-900">
+                        <button type="button" onclick="toggleTopic(${topic.id})" class="ml-2 text-red-600 text-base hover:text-purple-900">
                             ×
                         </button>
                     </span>
@@ -227,7 +227,7 @@
                 availableTopicsDiv.innerHTML += `
                     <button type="button" 
                         onclick="toggleTopic(${topic.id})"
-                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-purple-100 hover:text-purple-800">
+                        class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 hover:bg-purple-100 hover:text-purple-800 mb-2 mr-2">
                         ${escapeHtml(topic.name)}
                     </button>
                 `;

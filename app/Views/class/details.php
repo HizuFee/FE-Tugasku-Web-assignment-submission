@@ -27,7 +27,7 @@
         <div class="flex space-x-4">
             <?php if ($userClassRole === 'student' || $userClassRole === 'contributor'): ?>
                 <a href="#" onclick="confirmLeave(<?= $class['id'] ?>)"
-                    class="px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-yellow-600 border border-transparent rounded-lg hover:bg-yellow-700 focus:outline-none focus:shadow-outline-yellow">
+                    class="px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:outline-none focus:shadow-outline-blue">
                     Leave Class
                 </a>
             <?php endif; ?>
@@ -81,18 +81,22 @@
             <?php if ($userClassRole === 'owner'): ?>
                 <div class="text-right">
                     <div class="mt-4 text-sm">
-                        <span class="block text-gray-500">Class Code:</span>
+                        <span class="block text-gray-500 dark:text-gray-400">Class Code:</span>
                         <span class="font-bold text-lg text-gray-700 dark:text-gray-200"><?= esc($class['code']) ?></span>
                     </div>
-                    <span class="px-3 py-1 text-white">Your role :</span>
-                    <span class="px-3 py-1 text-red-700 bg-red-100 rounded-full dark:bg-red-700 dark:text-red-100">Owner</span>
+                    <div class="mt-2">
+                        <span class="text-gray-500 dark:text-gray-400">Your role:</span>
+                        <span class="ml-2 px-3 py-1 text-red-700 bg-red-100 rounded-full dark:bg-red-700 dark:text-red-100">Owner</span>
+                    </div>
                 </div>
             <?php elseif ($userClassRole === 'contributor'): ?>
                 <div class="text-right">
+                    <span class="text-gray-500 dark:text-gray-400">Your role: </span>
                     <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">Contributor</span>
                 </div>
             <?php else: ?>
                 <div class="text-right">
+                    <span class="text-gray-500 dark:text-gray-400">Your role: </span>
                     <span class="px-3 py-1 bg-blue-600 text-white rounded-full text-sm">Student</span>
                 </div>
             <?php endif; ?>
@@ -106,7 +110,7 @@
 
             <?php if ($userClassRole === 'owner' || $userClassRole === 'contributor'): ?>
                 <a href="<?= site_url('class/' . $class['id'] . '/assignments/create') ?>"
-                    class="px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-green-600 border border-transparent rounded-lg hover:bg-green-700 focus:outline-none focus:shadow-outline-green">
+                    class="px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:shadow-outline-green">
                     Create New Assignment
                 </a>
             <?php endif; ?>
