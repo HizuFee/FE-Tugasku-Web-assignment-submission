@@ -260,4 +260,49 @@ class ClassController extends Controller
                 ->with('error', $errorMessage);
         }
     }
+
+    // Leave class
+    public function leave($id)
+    {
+        $apiUrl = "http://localhost:3000/api/class/leave/{$id}";
+        $headers = [
+            'x-auth-token' => session()->get('auth_token')
+        ];
+
+        $response = api_request($apiUrl, 'POST', [], $headers);
+
+        if ($response && !isset($response['error'])) {
+            return redirect()->to('/dashboard')
+                ->with('success', 'Successfully left the class: ' . ($response['class']['name'] ?? ''));
+        } else {
+            $errorMessage = $response['message'] ?? 'Failed to leave class. Please try again.';
+            return redirect()->back()
+                ->with('error', $errorMessage);
+        }
+    }
+
+    // Kick student from class
+    public function kickStudent($classId, $studentId)
+    {
+        if (session()->get('user')['role'] !== 'teacher') {
+            return redirect()->to('/dashboard')
+                ->with('error', 'Only teachers can kick students from classes');
+        }
+
+        $apiUrl = "http://localhost:3000/api/class/kick/{$classId}/student/{$studentId}";
+        $headers = [
+            'x-auth-token' => session()->get('auth_token')
+        ];
+
+        $response = api_request($apiUrl, 'POST', [], $headers);
+
+        if ($response && !isset($response['error'])) {
+            return redirect()->to("/class/details/{$classId}")
+                ->with('success', 'Student successfully removed from the class');
+        } else {
+            $errorMessage = $response['message'] ?? 'Failed to kick student. Please try again.';
+            return redirect()->back()
+                ->with('error', $errorMessage);
+        }
+    }
 }

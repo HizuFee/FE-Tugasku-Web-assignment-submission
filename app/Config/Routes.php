@@ -25,6 +25,12 @@ $routes->group('class', ['filter' => 'auth'], function ($routes) {
     $routes->post('update/(:num)', 'ClassController::update/$1', ['filter' => 'auth:teacher']);
     $routes->get('delete/(:num)', 'ClassController::delete/$1', ['filter' => 'auth:teacher']);
 
+    // Leave class route (for students and contributors)
+    $routes->get('leave/(:num)', 'ClassController::leave/$1');
+
+    // Kick student route (for teachers only)
+    $routes->get('kick/(:num)/student/(:num)', 'ClassController::kickStudent/$1/$2', ['filter' => 'auth:teacher']);
+
     // Topic routes
     $routes->group('(:num)/topics', ['filter' => 'auth:teacher'], function ($routes) {
         $routes->get('', 'TopicController::getClassTopics/$1');

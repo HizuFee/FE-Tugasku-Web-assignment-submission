@@ -24,9 +24,17 @@
         <h2 class="my-6 text-2xl font-semibold text-gray-700 dark:text-gray-200">
             <?= esc($class['name']) ?>
         </h2>
-        <a href="<?= site_url('dashboard') ?>" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
-            Back to Dashboard
-        </a>
+        <div class="flex space-x-4">
+            <?php if ($userClassRole === 'student' || $userClassRole === 'contributor'): ?>
+                <a href="#" onclick="confirmLeave(<?= $class['id'] ?>)"
+                    class="px-4 py-2 text-sm font-medium leading-5 text-white transition-colors duration-150 bg-yellow-600 border border-transparent rounded-lg hover:bg-yellow-700 focus:outline-none focus:shadow-outline-yellow">
+                    Leave Class
+                </a>
+            <?php endif; ?>
+            <a href="<?= site_url('dashboard') ?>" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
+                Back to Dashboard
+            </a>
+        </div>
     </div>
 
     <?php if ($userClassRole === 'owner'): ?>
@@ -156,6 +164,9 @@
                             <th class="px-4 py-3">Name</th>
                             <th class="px-4 py-3">Email</th>
                             <th class="px-4 py-3">Role</th>
+                            <?php if ($userClassRole === 'owner' || $userClassRole === 'contributor'): ?>
+                                <th class="px-4 py-3">Actions</th>
+                            <?php endif; ?>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y dark:divide-gray-700 dark:bg-gray-800">
@@ -169,11 +180,19 @@
                                             Student
                                         </span>
                                     </td>
+                                    <?php if ($userClassRole === 'owner' || $userClassRole === 'contributor'): ?>
+                                        <td class="px-4 py-3">
+                                            <a href="#" onclick="confirmKick(<?= $class['id'] ?>, <?= $student['id'] ?>)"
+                                                class="px-2 py-1 text-xs font-medium leading-5 text-white transition-colors duration-150 bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:outline-none focus:shadow-outline-red">
+                                                Kick
+                                            </a>
+                                        </td>
+                                    <?php endif; ?>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr class="text-gray-700 dark:text-gray-400">
-                                <td colspan="3" class="px-4 py-3 text-center">No students have joined this class yet.</td>
+                                <td colspan="<?= ($userClassRole === 'owner' || $userClassRole === 'contributor') ? '4' : '3' ?>" class="px-4 py-3 text-center">No students have joined this class yet.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
@@ -182,4 +201,18 @@
         </div>
     </div>
 </div>
+
+<script>
+    function confirmLeave(classId) {
+        if (confirm('Are you sure you want to leave this class? This action cannot be undone.')) {
+            window.location.href = '<?= site_url('class/leave/') ?>' + classId;
+        }
+    }
+
+    function confirmKick(classId, studentId) {
+        if (confirm('Are you sure you want to kick this student from the class? This action cannot be undone.')) {
+            window.location.href = '<?= site_url('class/kick/') ?>' + classId + '/student/' + studentId;
+        }
+    }
+</script>
 <?= $this->endSection() ?>
